@@ -50,30 +50,29 @@ async function scrapeUrl(url: string): Promise<string> {
         'Sec-Fetch-Dest': 'document'
       });
 
-      // Enable JavaScript console logging
-      page.on('console', msg => console.log('Browser console:', msg.text()));
+      // Enable request interception BEFORE adding listeners
+      await page.setRequestInterception(true);
 
       // Track network requests
       const requests = new Map();
       page.on('request', request => {
         requests.set(request.url(), request);
-        
-        // Allow all resource types for modern web apps
-        request.continue();
+        const resourceType = request.resourceType();
+        if (['document', 'script', 'xhr', 'fetch'].includes(resourceType)) {
+          request.continue();
+        } else {
+          request.abort();
+        }
       });
 
       // Handle responses and collect API data
       const apiData = new Map();
       page.on('response', async response => {
-        const url = response.url();
-        const request = requests.get(url);
-        
         try {
-          // Check if response is JSON
           const contentType = response.headers()['content-type'];
           if (contentType?.includes('application/json')) {
             const json = await response.json();
-            apiData.set(url, json);
+            apiData.set(response.url(), json);
           }
         } catch (e) {
           // Not JSON, ignore
@@ -88,7 +87,6 @@ async function scrapeUrl(url: string): Promise<string> {
 
       // Wait for dynamic content
       await page.waitForFunction(() => {
-        // Check if main content is loaded
         const selectors = [
           'main',
           'article',
@@ -96,7 +94,7 @@ async function scrapeUrl(url: string): Promise<string> {
           '#main-content',
           '.main-content',
           '.content',
-          '[data-testid]', // Common in React apps
+          '[data-testid]',
           '[class*="container"]',
           '[class*="wrapper"]'
         ];
@@ -108,20 +106,18 @@ async function scrapeUrl(url: string): Promise<string> {
         console.log('Timeout waiting for content selectors');
       });
 
-      // Extract content with API data integration
-      const content = await page.evaluate((apiDataEntries) => {
+      // Extract content
+      const content = await page.evaluate(() => {
         function getVisibleText(element) {
           const style = window.getComputedStyle(element);
           if (style.display === 'none' || style.visibility === 'hidden') return '';
           
-          // Filter out navigation, footer, etc.
           const role = element.getAttribute('role')?.toLowerCase();
           if (['navigation', 'banner', 'footer'].includes(role)) return '';
           
           return element.textContent?.trim() || '';
         }
 
-        // Get metadata with enhanced selectors
         const metadata = {
           title: document.title,
           description: '',
@@ -129,7 +125,7 @@ async function scrapeUrl(url: string): Promise<string> {
           image: ''
         };
 
-        // Try multiple meta tag formats
+        // Get meta tags
         const metaSelectors = {
           description: [
             'meta[name="description"]',
@@ -153,36 +149,28 @@ async function scrapeUrl(url: string): Promise<string> {
           }
         }
 
-        // Get main content with priority for web app structures
         const mainContent = new Set();
         
-        // Modern web app selectors
+        // Try to get structured content
         const contentSelectors = [
-          // Main content
           'main', '[role="main"]', '#root', '#app', '#__next',
-          // Common component names
           '[class*="content"]', '[class*="container"]', '[class*="wrapper"]',
-          // Common data attributes
           '[data-testid]', '[data-component]', '[data-section]',
-          // Specific content types
           'article', '.post', '.article',
-          // Download/documentation sections
           '[class*="download"]', '[class*="docs"]', '[class*="documentation"]',
-          // Pricing/features sections
           '[class*="pricing"]', '[class*="features"]'
         ];
 
-        // First pass: try to get structured content
         for (const selector of contentSelectors) {
           for (const el of document.querySelectorAll(selector)) {
             const text = getVisibleText(el);
-            if (text && text.length > 50) { // Minimum content length
+            if (text && text.length > 50) {
               mainContent.add(text);
             }
           }
         }
 
-        // Second pass: look for interactive elements and their context
+        // Look for interactive elements
         const interactiveSelectors = [
           'button', 'a', 'input', 'select',
           '[role="button"]', '[role="link"]',
@@ -193,7 +181,6 @@ async function scrapeUrl(url: string): Promise<string> {
           for (const el of document.querySelectorAll(selector)) {
             const text = el.textContent?.trim();
             if (text && (text.includes('Download') || text.includes('Install'))) {
-              // Get the parent section for context
               const section = el.closest('section, div[class*="section"], div[class*="container"]');
               if (section) {
                 const text = getVisibleText(section);
@@ -203,7 +190,7 @@ async function scrapeUrl(url: string): Promise<string> {
           }
         }
 
-        // Third pass: if still no content, try text nodes with meaningful content
+        // Fallback to text nodes
         if (mainContent.size === 0) {
           const walker = document.createTreeWalker(
             document.body,
@@ -219,7 +206,6 @@ async function scrapeUrl(url: string): Promise<string> {
                 }
                 
                 const text = node.textContent?.trim();
-                // Look for meaningful content
                 if (!text || text.length < 20 || text.split(' ').length < 4) {
                   return NodeFilter.FILTER_REJECT;
                 }
@@ -235,26 +221,11 @@ async function scrapeUrl(url: string): Promise<string> {
           }
         }
 
-        // Integrate API data if available
-        const apiContent = apiDataEntries.map(([url, data]) => {
-          if (typeof data === 'object') {
-            return Object.entries(data)
-              .filter(([key]) => !key.toLowerCase().includes('token')) // Skip sensitive data
-              .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-              .join('\n');
-          }
-          return '';
-        }).filter(Boolean);
-
-        if (apiContent.length > 0) {
-          mainContent.add('\nAPI Data:\n' + apiContent.join('\n'));
-        }
-
         return {
           metadata,
           mainContent: Array.from(mainContent).join('\n\n')
         };
-      }, Array.from(apiData.entries()));
+      });
 
       await browser.close();
 
@@ -421,13 +392,13 @@ function summarizeContent(content: string, maxLength: number = 4000): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages, urls } = body;
+    const { messages = [], urls = [] } = body;
 
     let scrapedContent = '';
     let failedUrls = [];
 
     // Scrape all provided URLs
-    if (urls && urls.length > 0) {
+    if (urls.length > 0) {
       for (const url of urls) {
         try {
           const content = await scrapeUrl(url);
@@ -454,7 +425,7 @@ export async function POST(req: Request) {
           role: "system",
           content: systemMessage
         },
-        ...messages
+        ...(Array.isArray(messages) ? messages : [])
       ],
       model: "mixtral-8x7b-32768",
       temperature: 0.5,
