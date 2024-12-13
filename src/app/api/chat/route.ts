@@ -390,6 +390,55 @@ function summarizeContent(content: string, maxLength: number = 4000): string {
   return result;
 }
 
+// Helper function to chunk content intelligently
+function chunkContent(content: string, maxTokens: number = 4000): string[] {
+  // Rough estimate: 1 token ≈ 4 characters
+  const maxChars = maxTokens * 4;
+  
+  if (content.length <= maxChars) return [content];
+
+  const chunks: string[] = [];
+  const sections = content.split('\n\n');
+  let currentChunk = '';
+
+  for (const section of sections) {
+    if (currentChunk.length + section.length + 2 <= maxChars) {
+      currentChunk += (currentChunk ? '\n\n' : '') + section;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      currentChunk = section;
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks;
+}
+
+// Helper function to merge LLM responses intelligently
+function mergeResponses(responses: string[]): string {
+  // Remove duplicate information
+  const uniqueInfo = new Set<string>();
+  const merged: string[] = [];
+
+  for (const response of responses) {
+    const sentences = response.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+    
+    for (const sentence of sentences) {
+      // Simple deduplication based on sentence similarity
+      const normalized = sentence.toLowerCase();
+      if (!Array.from(uniqueInfo).some(existing => 
+        normalized.includes(existing.toLowerCase()) || 
+        existing.toLowerCase().includes(normalized)
+      )) {
+        uniqueInfo.add(sentence);
+        merged.push(sentence);
+      }
+    }
+  }
+
+  return merged.join('. ') + '.';
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -413,37 +462,50 @@ export async function POST(req: Request) {
       }
     }
 
-    // Prepare messages for the LLM
-    const messages = [
-      ...previousMessages,
-      { role: 'user', content: message }
-    ];
-
-    // Add source information if available
+    // Prepare base prompt
+    let prompt = message;
     if (scrapedContents.length > 0) {
       const sources = scrapedContents.map(content => summarizeContent(content)).join('\n\n');
-      messages[messages.length - 1].content = `Sources:\n\n${sources}\n\n${message}`;
+      prompt = `Sources:\n\n${sources}\n\n${message}`;
     }
 
-    // Call Groq API
-    const completion = await groq.chat.completions.create({
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      })),
-      model: 'mixtral-8x7b-32768',
-      temperature: 0.5,
-      max_tokens: 4096,
-      top_p: 1,
-      stop: null,
-      stream: false,
-    });
+    // Split into chunks if needed
+    const chunks = chunkContent(prompt);
+    const responses: string[] = [];
+
+    // Process each chunk
+    for (const chunk of chunks) {
+      const completion = await groq.chat.completions.create({
+        messages: [
+          ...previousMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+          { 
+            role: 'user', 
+            content: chunk + (chunks.length > 1 ? '\n\nNote: This is part of a larger content. Please focus on extracting and analyzing the information from this part.' : '')
+          }
+        ],
+        model: 'mixtral-8x7b-32768',
+        temperature: 0.5,
+        max_tokens: 4096,
+        top_p: 1,
+        stop: null,
+        stream: false,
+      });
+
+      responses.push(completion.choices[0]?.message?.content || '');
+    }
+
+    // Merge responses if needed
+    const finalResponse = chunks.length > 1 ? mergeResponses(responses) : responses[0];
 
     return new Response(
       JSON.stringify({
-        content: completion.choices[0]?.message?.content || "No response generated",
+        content: finalResponse,
         sources: allUrls.filter(url => !failedUrls.includes(url)),
-        failedUrls
+        failedUrls,
+        chunked: chunks.length > 1
       }),
       { 
         status: 200,
@@ -453,6 +515,19 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error('Error in chat route:', error);
+    if (error.message?.includes('rate_limit_exceeded')) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded. Please try again in a moment.',
+          content: "I apologize, but I'm receiving too many requests right now. Please try sending a shorter message or wait a moment before trying again.",
+          failedUrls: []
+        }),
+        { 
+          status: 429, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Failed to process request',

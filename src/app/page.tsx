@@ -7,6 +7,7 @@ type Message = {
   content: string;
   sources?: string[];
   error?: boolean;
+  processing?: boolean;
 };
 
 type UrlContext = {
@@ -53,6 +54,9 @@ export default function Home() {
       const data = await response.json();
       
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error("Rate limit exceeded. Please try again in a moment.");
+        }
         throw new Error(data.error || "Failed to get response");
       }
 
@@ -80,9 +84,21 @@ export default function Home() {
         }
       }
 
+      // If the response was chunked, add a processing message
+      if (data.chunked) {
+        setMessages(prev => [
+          ...prev,
+          { 
+            role: "assistant", 
+            content: "Processing large content in chunks...",
+            processing: true
+          }
+        ]);
+      }
+
       // Add assistant message
       setMessages(prev => [
-        ...prev,
+        ...prev.filter(m => !m.processing), // Remove any processing messages
         { 
           role: "assistant", 
           content: data.content,
@@ -160,6 +176,8 @@ export default function Home() {
                   ? "bg-blue-600 ml-auto max-w-md"
                   : msg.error
                   ? "bg-red-900 mr-auto max-w-2xl"
+                  : msg.processing
+                  ? "bg-orange-900 mr-auto max-w-2xl"
                   : "bg-gray-800 mr-auto max-w-2xl"
               }`}
             >
