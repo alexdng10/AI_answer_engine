@@ -1,0 +1,57 @@
+// TODO: Implement the code here to add rate limiting with Redis
+// Refer to the Next.js Docs: https://nextjs.org/docs/app/building-your-application/routing/middleware
+// Refer to Redis docs on Rate Limiting: https://upstash.com/docs/redis/sdks/ratelimit-ts/algorithms
+
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { Redis } from "@upstash/redis";
+import { Ratelimit } from "@upstash/ratelimit";
+
+// Create a new ratelimiter that allows 10 requests per 10 seconds
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+const ratelimit = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(10, "10 s"),
+});
+
+export async function middleware(request: NextRequest) {
+  try {
+    // Only rate limit the chat API endpoint
+    if (request.nextUrl.pathname === "/api/chat") {
+      const ip = request.ip ?? "127.0.0.1";
+      const { success, pending, limit, reset, remaining } = await ratelimit.limit(
+        `ratelimit_${ip}`
+      );
+
+      if (!success) {
+        return new NextResponse("Too many requests", {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": limit.toString(),
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": reset.toString(),
+          },
+        });
+      }
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error("Rate limiting error:", error);
+    return NextResponse.next();
+  }
+}
+
+// Configure which paths the middleware runs on
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except static files and images
+     */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
+};
