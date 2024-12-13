@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
-// Create a new ratelimiter that allows 10 requests per 10 seconds
+// Create a new ratelimiter that allows 30 requests per minute
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
@@ -15,7 +15,8 @@ const redis = new Redis({
 
 const ratelimit = new Ratelimit({
   redis: redis,
-  limiter: Ratelimit.slidingWindow(10, "10 s"),
+  limiter: Ratelimit.slidingWindow(30, "60 s"), // Increased to 30 requests per minute
+  timeout: 1000, // 1 second timeout
 });
 
 export async function middleware(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function middleware(request: NextRequest) {
       );
 
       if (!success) {
-        return new NextResponse("Too many requests", {
+        return new NextResponse("Too many requests. Please wait a minute before trying again.", {
           status: 429,
           headers: {
             "X-RateLimit-Limit": limit.toString(),
