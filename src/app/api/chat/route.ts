@@ -100,11 +100,13 @@ export async function POST(req: Request) {
       return acc;
     }, {} as { [key: string]: string });
 
-    // Build conversation history
-    const conversationHistory = previousMessages.map((msg: any) => ({
-      role: msg.role,
-      content: msg.content
-    }));
+    // Convert previous messages to the correct format for Groq
+    const conversationHistory = previousMessages
+      .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
+      .map((msg: any) => ({
+        role: msg.role === 'ai' ? 'assistant' : msg.role,
+        content: msg.content
+      }));
 
     // Combine scraped content with user message
     const context = successfulScrapes.length

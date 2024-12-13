@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 type Message = {
-  role: "user" | "ai";
+  role: "user" | "assistant";
   content: string;
   sources?: string[];
   error?: boolean;
@@ -20,7 +20,7 @@ export default function Home() {
   const [urls, setUrls] = useState<string[]>([]);
   const [urlContext, setUrlContext] = useState<UrlContext[]>([]);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", content: "Hello! How can I help you today? You can paste URLs for me to analyze, or ask a question directly." },
+    { role: "assistant", content: "Hello! How can I help you today? You can paste URLs for me to analyze, or ask a question directly." },
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -80,7 +80,7 @@ export default function Home() {
           setMessages(prev => [
             ...prev,
             {
-              role: "ai",
+              role: "assistant",
               content: `⚠️ Failed to access some URLs: ${data.failedUrls.join(", ")}`,
               error: true
             }
@@ -90,7 +90,7 @@ export default function Home() {
         setMessages(prev => [
           ...prev,
           { 
-            role: "ai", 
+            role: "assistant", 
             content: data.content,
             sources: data.sources?.filter(url => !data.failedUrls?.includes(url))
           },
@@ -103,7 +103,7 @@ export default function Home() {
       setMessages(prev => [
         ...prev,
         { 
-          role: "ai", 
+          role: "assistant", 
           content: error instanceof Error 
             ? `Error: ${error.message}` 
             : "Sorry, I encountered an error processing your request.",
