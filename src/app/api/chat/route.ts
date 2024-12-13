@@ -19,7 +19,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 async function scrapeUrl(url: string): Promise<string> {
   try {
     // Validate URL
-    new URL(url); // This will throw if URL is invalid
+    new URL(url);
 
     // Check cache first
     const cached = urlCache[url];
@@ -27,29 +27,102 @@ async function scrapeUrl(url: string): Promise<string> {
       return cached.content;
     }
 
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1920x1080',
+      ]
+    });
+
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(30000); // 30 second timeout
-    await page.goto(url, { waitUntil: 'networkidle0' });
-    const content = await page.content();
-    await browser.close();
-
-    const $ = cheerio.load(content);
-    // Remove script tags, style tags, and comments
-    $("script").remove();
-    $("style").remove();
-    $("comment").remove();
     
-    // Get the text content
-    const text = $("body").text().replace(/\s+/g, " ").trim();
+    // Set viewport and user agent
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Cache the result
-    urlCache[url] = {
-      content: text,
-      timestamp: Date.now()
-    };
+    // Set longer timeout for initial navigation
+    await page.setDefaultNavigationTimeout(30000);
+    
+    try {
+      // Wait for network idle to ensure dynamic content loads
+      await page.goto(url, {
+        waitUntil: ['networkidle0', 'domcontentloaded'],
+        timeout: 30000
+      });
 
-    return text;
+      // Wait a bit for any dynamic content
+      await page.waitForTimeout(2000);
+
+      // Try to get content after scrolling
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+        return new Promise(resolve => setTimeout(resolve, 1000));
+      });
+
+      // Get the page content
+      const content = await page.evaluate(() => {
+        // Remove unwanted elements
+        const elementsToRemove = document.querySelectorAll('script, style, noscript, iframe, img, svg, video');
+        elementsToRemove.forEach(el => el.remove());
+
+        // Get text from body
+        const body = document.body;
+        return body ? body.innerText : '';
+      });
+
+      await browser.close();
+
+      // Clean up the text
+      const cleanedContent = content
+        .replace(/\s+/g, ' ')
+        .replace(/\n+/g, '\n')
+        .trim();
+
+      if (!cleanedContent) {
+        throw new Error('No content found on page');
+      }
+
+      // Cache the result
+      urlCache[url] = {
+        content: cleanedContent,
+        timestamp: Date.now()
+      };
+
+      return cleanedContent;
+
+    } catch (navigationError) {
+      console.error(`Navigation error for ${url}:`, navigationError);
+      
+      // Fallback to simpler content extraction
+      const content = await page.content();
+      const $ = cheerio.load(content);
+      
+      // Remove unwanted elements
+      $('script, style, noscript, iframe').remove();
+      
+      // Get text content
+      const text = $('body').text().replace(/\s+/g, ' ').trim();
+      
+      if (!text) {
+        throw new Error('No content found on page');
+      }
+      
+      await browser.close();
+      
+      // Cache the result
+      urlCache[url] = {
+        content: text,
+        timestamp: Date.now()
+      };
+      
+      return text;
+    }
+
   } catch (error) {
     console.error(`Error scraping ${url}:`, error);
     if (error instanceof Error) {
