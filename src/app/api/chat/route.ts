@@ -45,55 +45,117 @@ async function scrapeUrl(url: string): Promise<string> {
     await page.setViewport({ width: 1920, height: 1080 });
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // Set longer timeout for initial navigation
-    await page.setDefaultNavigationTimeout(30000);
-    
+    // Enable JavaScript
+    await page.setJavaScriptEnabled(true);
+
     try {
-      // Wait for network idle to ensure dynamic content loads
+      // Navigate to the page and wait for content
       await page.goto(url, {
         waitUntil: ['networkidle0', 'domcontentloaded'],
         timeout: 30000
       });
 
-      // Wait a bit for any dynamic content
-      await page.waitForTimeout(2000);
+      // Wait for specific elements that indicate the page has loaded
+      await page.waitForTimeout(3000); // Give more time for dynamic content
 
-      // Try to get content after scrolling
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-        return new Promise(resolve => setTimeout(resolve, 1000));
-      });
-
-      // Get the page content
+      // Extract visible UI elements and their text
       const content = await page.evaluate(() => {
-        // Remove unwanted elements
-        const elementsToRemove = document.querySelectorAll('script, style, noscript, iframe, img, svg, video');
-        elementsToRemove.forEach(el => el.remove());
+        const getVisibleText = (element: Element): string => {
+          // Check if element is visible
+          const style = window.getComputedStyle(element);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return '';
+          }
 
-        // Get text from body
-        const body = document.body;
-        return body ? body.innerText : '';
+          // Get text content of this element
+          let text = element.textContent || '';
+
+          // Get additional UI information
+          if (element instanceof HTMLElement) {
+            // Get button text and labels
+            if (element.tagName === 'BUTTON' || element.role === 'button') {
+              const buttonText = `Button: ${text.trim()}`;
+              text = buttonText;
+            }
+
+            // Get input placeholders and labels
+            if (element.tagName === 'INPUT') {
+              const placeholder = element.getAttribute('placeholder');
+              const label = element.getAttribute('aria-label') || element.getAttribute('title');
+              if (placeholder || label) {
+                text = `Input field: ${placeholder || label}`;
+              }
+            }
+
+            // Get link text and href
+            if (element.tagName === 'A' && element.getAttribute('href')) {
+              const href = element.getAttribute('href');
+              if (!href?.startsWith('#')) {
+                text = `Link: ${text.trim()} (${href})`;
+              }
+            }
+
+            // Get aria labels and titles
+            const ariaLabel = element.getAttribute('aria-label');
+            const title = element.getAttribute('title');
+            if (ariaLabel || title) {
+              text = `${ariaLabel || title}: ${text.trim()}`;
+            }
+          }
+
+          return text.trim();
+        };
+
+        // Get all elements
+        const elements = document.body.getElementsByTagName('*');
+        const visibleTexts: string[] = [];
+
+        // Process each element
+        for (const element of elements) {
+          const text = getVisibleText(element);
+          if (text) {
+            visibleTexts.push(text);
+          }
+        }
+
+        // Get any visible configuration options
+        const configElements = document.querySelectorAll('[class*="config"], [id*="config"], [class*="setting"], [id*="setting"]');
+        const configTexts: string[] = [];
+        configElements.forEach(element => {
+          const text = getVisibleText(element);
+          if (text) {
+            configTexts.push(`Configuration: ${text}`);
+          }
+        });
+
+        // Combine all text content
+        return {
+          title: document.title,
+          mainContent: visibleTexts.join('\n'),
+          configuration: configTexts.join('\n')
+        };
       });
 
       await browser.close();
 
-      // Clean up the text
-      const cleanedContent = content
-        .replace(/\s+/g, ' ')
-        .replace(/\n+/g, '\n')
-        .trim();
+      // Format the content
+      const formattedContent = `
+Title: ${content.title}
 
-      if (!cleanedContent) {
-        throw new Error('No content found on page');
-      }
+Main Content:
+${content.mainContent}
+
+Configuration Options:
+${content.configuration}
+`.trim();
 
       // Cache the result
       urlCache[url] = {
-        content: cleanedContent,
+        content: formattedContent,
         timestamp: Date.now()
       };
 
-      return cleanedContent;
+      return formattedContent;
 
     } catch (navigationError) {
       console.error(`Navigation error for ${url}:`, navigationError);
@@ -102,25 +164,44 @@ async function scrapeUrl(url: string): Promise<string> {
       const content = await page.content();
       const $ = cheerio.load(content);
       
+      // Get title
+      const title = $('title').text();
+      
       // Remove unwanted elements
       $('script, style, noscript, iframe').remove();
       
-      // Get text content
-      const text = $('body').text().replace(/\s+/g, ' ').trim();
+      // Get text content with better structure
+      const mainContent = $('body').find('*').map(function() {
+        const text = $(this).text().trim();
+        const ariaLabel = $(this).attr('aria-label');
+        const title = $(this).attr('title');
+        
+        if (text && (ariaLabel || title)) {
+          return `${ariaLabel || title}: ${text}`;
+        }
+        return text;
+      }).get().filter(text => text.length > 0).join('\n');
       
-      if (!text) {
+      if (!mainContent) {
         throw new Error('No content found on page');
       }
       
       await browser.close();
       
+      const formattedContent = `
+Title: ${title}
+
+Content:
+${mainContent}
+`.trim();
+      
       // Cache the result
       urlCache[url] = {
-        content: text,
+        content: formattedContent,
         timestamp: Date.now()
       };
       
-      return text;
+      return formattedContent;
     }
 
   } catch (error) {
@@ -130,6 +211,53 @@ async function scrapeUrl(url: string): Promise<string> {
     }
     throw new Error(`Failed to scrape ${url}`);
   }
+}
+
+// Helper function to truncate text while preserving important information
+function summarizeContent(content: string, maxLength: number = 2000): string {
+  if (content.length <= maxLength) return content;
+
+  // Split content into sections
+  const sections = content.split('\n\n');
+  const processedSections: string[] = [];
+  let currentLength = 0;
+
+  for (const section of sections) {
+    // Always include section headers
+    if (section.startsWith('Title:') || section.startsWith('Main Content:') || section.startsWith('Configuration Options:')) {
+      processedSections.push(section);
+      currentLength += section.length;
+      continue;
+    }
+
+    // For content sections, keep only unique and important information
+    const lines = section.split('\n')
+      .filter(line => line.trim())
+      // Prioritize lines with UI elements and configuration
+      .filter(line => 
+        line.includes('Button:') ||
+        line.includes('Input field:') ||
+        line.includes('Configuration:') ||
+        line.includes('Link:') ||
+        line.length > 10
+      )
+      // Remove duplicate information
+      .filter((line, index, self) => 
+        self.findIndex(l => l.toLowerCase().includes(line.toLowerCase())) === index
+      );
+
+    const summarizedSection = lines.join('\n');
+    if (currentLength + summarizedSection.length <= maxLength) {
+      processedSections.push(summarizedSection);
+      currentLength += summarizedSection.length;
+    } else {
+      // If we can't fit the whole section, add a note
+      processedSections.push('... (additional content truncated)');
+      break;
+    }
+  }
+
+  return processedSections.join('\n\n');
 }
 
 export async function POST(req: Request) {
@@ -158,17 +286,19 @@ export async function POST(req: Request) {
 
     scrapedResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
-        successfulScrapes.push(result.value);
+        // Summarize each scraped content
+        const summarized = summarizeContent(result.value);
+        successfulScrapes.push(summarized);
       } else {
         console.error(`Failed to scrape ${urls[index]}:`, result.reason);
         failedUrls.push(urls[index]);
       }
     });
 
-    // Create a map of URLs to their content for reference
+    // Create a map of URLs to their summarized content
     const urlContentMap = urls.reduce((acc, url, index) => {
       if (scrapedResults[index].status === 'fulfilled') {
-        acc[url] = (scrapedResults[index] as PromiseFulfilledResult<string>).value;
+        acc[url] = summarizeContent((scrapedResults[index] as PromiseFulfilledResult<string>).value);
       }
       return acc;
     }, {} as { [key: string]: string });
@@ -179,14 +309,19 @@ export async function POST(req: Request) {
       .map((msg: any) => ({
         role: msg.role === 'ai' ? 'assistant' : msg.role,
         content: msg.content
-      }));
+      }))
+      // Only keep last few messages to reduce context size
+      .slice(-3);
 
-    // Combine scraped content with user message
+    // Combine scraped content with user message, ensuring it's not too long
     const context = successfulScrapes.length
       ? `Context from provided URLs:\n${Object.entries(urlContentMap)
-          .map(([url, content]) => `[${url}]: ${content}`)
+          .map(([url, content]) => `[${url}]:\n${content}`)
           .join("\n\n")}${failedUrls.length ? `\n\nNote: Failed to scrape: ${failedUrls.join(", ")}` : ""}\n\nUser question: ${message}`
       : message;
+
+    // Ensure final context isn't too long
+    const finalContext = summarizeContent(context, 4000);
 
     const completion = await groq.chat.completions.create({
       messages: [
@@ -198,7 +333,7 @@ export async function POST(req: Request) {
         ...conversationHistory,
         {
           role: "user",
-          content: context,
+          content: finalContext,
         },
       ],
       model: "mixtral-8x7b-32768",
