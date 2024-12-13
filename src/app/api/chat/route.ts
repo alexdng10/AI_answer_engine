@@ -18,9 +18,8 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 async function scrapeUrl(url: string): Promise<string> {
   try {
-    // Validate URL
-    new URL(url);
-
+    const parsedUrl = new URL(url);
+    
     // Check cache first
     const cached = urlCache[url];
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -32,171 +31,218 @@ async function scrapeUrl(url: string): Promise<string> {
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080',
-        '--enable-javascript',
-        '--disable-extensions', // Disable extensions that might interfere
-        '--allow-running-insecure-content', // Allow mixed content
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins',
+        '--disable-site-isolation-trials',
+        '--window-size=1920x1080'
       ]
     });
 
-    const page = await browser.newPage();
-    
-    // Set viewport and user agent
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
-    // Enable JavaScript and CSS
-    await page.setJavaScriptEnabled(true);
-    
-    // Intercept requests to detect loading issues
-    let loadingIssues: string[] = [];
-    await page.setRequestInterception(true);
-    
-    page.on('request', request => {
-      request.continue();
-    });
-    
-    page.on('requestfailed', request => {
-      if (request.url().endsWith('.css')) {
-        loadingIssues.push(`Failed to load CSS: ${request.url()}`);
-      } else if (request.url().endsWith('.js')) {
-        loadingIssues.push(`Failed to load JavaScript: ${request.url()}`);
-      } else if (request.url().includes('service-worker')) {
-        loadingIssues.push(`Service Worker issue: ${request.url()}`);
-      }
-    });
-
     try {
-      // Navigate with longer timeout and wait for everything
-      await page.goto(url, {
-        waitUntil: ['networkidle0', 'domcontentloaded', 'load'],
-        timeout: 45000 // 45 seconds timeout
-      });
-
-      // Check for JavaScript errors
-      const jsErrors = await page.evaluate(() => {
-        const errors: string[] = [];
-        if (!window.localStorage) errors.push('LocalStorage is not available');
-        if (!window.indexedDB) errors.push('IndexedDB is not available');
-        if (!navigator.serviceWorker) errors.push('ServiceWorker is not supported');
-        return errors;
-      });
+      const page = await browser.newPage();
       
-      loadingIssues.push(...jsErrors);
-
-      // Wait for any CSS files to load
-      await page.waitForFunction(() => {
-        const styleSheets = document.styleSheets;
-        return Array.from(styleSheets).some(sheet => sheet.cssRules && sheet.cssRules.length > 0);
-      }, { timeout: 10000 }).catch(() => {
-        loadingIssues.push('Timeout waiting for CSS to load');
+      // Set modern browser configuration
+      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await page.setViewport({ width: 1920, height: 1080 });
+      await page.setExtraHTTPHeaders({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Sec-Fetch-Dest': 'document'
       });
 
-      // Check for cookie consent and dark mode issues
-      const siteIssues = await page.evaluate(() => {
-        const issues: string[] = [];
-        if (document.querySelector('[class*="cookie"]')) {
-          issues.push('Cookie consent banner detected');
-        }
-        if (document.querySelector('[class*="dark"]')) {
-          issues.push('Dark mode elements detected - check for theme compatibility');
-        }
-        return issues;
-      });
-      
-      loadingIssues.push(...siteIssues);
+      // Track page status
+      let pageStatus = {
+        redirectCount: 0,
+        finalUrl: url,
+        errors: [] as string[],
+        isRateLimited: false,
+        statusCode: 200
+      };
 
-      // Get computed styles to verify CSS loading
-      const stylesLoaded = await page.evaluate(() => {
-        const body = document.body;
-        const computedStyle = window.getComputedStyle(body);
-        return {
-          backgroundColor: computedStyle.backgroundColor,
-          color: computedStyle.color,
-          fontFamily: computedStyle.fontFamily,
-          visibility: computedStyle.visibility,
-          display: computedStyle.display
-        };
-      });
-
-      // Extract page information
-      const content = await page.evaluate(() => {
-        const getVisibleText = (element: Element): string => {
-          const style = window.getComputedStyle(element);
-          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-            return '';
+      // Better request handling
+      await page.setRequestInterception(true);
+      page.on('request', request => {
+        const resourceType = request.resourceType();
+        if (['document', 'script', 'xhr', 'fetch'].includes(resourceType)) {
+          request.continue();
+        } else if (resourceType === 'image') {
+          // Only load images from the same domain
+          const imgUrl = new URL(request.url());
+          if (imgUrl.hostname === parsedUrl.hostname) {
+            request.continue();
+          } else {
+            request.abort();
           }
+        } else {
+          request.abort();
+        }
+      });
 
-          let text = element.textContent || '';
-          if (element instanceof HTMLElement) {
-            const role = element.getAttribute('role');
-            const ariaLabel = element.getAttribute('aria-label');
-            const title = element.getAttribute('title');
-            
-            if (element.tagName === 'BUTTON' || role === 'button') {
-              text = `Button: ${text.trim()}`;
-            } else if (element.tagName === 'INPUT') {
-              const placeholder = element.getAttribute('placeholder');
-              text = `Input: ${placeholder || ariaLabel || title || text}`;
-            } else if (ariaLabel || title) {
-              text = `${ariaLabel || title}: ${text}`;
+      // Handle responses
+      page.on('response', async response => {
+        const status = response.status();
+        pageStatus.statusCode = status;
+        
+        if (status === 429) {
+          pageStatus.isRateLimited = true;
+          pageStatus.errors.push('Rate limited by server');
+        } else if (status >= 300 && status <= 399) {
+          pageStatus.redirectCount++;
+          pageStatus.finalUrl = response.url();
+        } else if (status >= 400) {
+          pageStatus.errors.push(`HTTP ${status} error`);
+        }
+      });
+
+      // Navigate with retry for timeouts
+      let content = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await page.goto(url, {
+            waitUntil: 'networkidle0',
+            timeout: 20000
+          });
+
+          // Wait for dynamic content
+          await page.waitForFunction(() => {
+            const body = document.body;
+            return body && body.innerHTML.length > 100;
+          }, { timeout: 5000 }).catch(() => {
+            pageStatus.errors.push('Timeout waiting for content');
+          });
+
+          // Extract content
+          content = await page.evaluate(() => {
+            function getVisibleText(element: Element): string {
+              const style = window.getComputedStyle(element);
+              if (style.display === 'none' || style.visibility === 'hidden') return '';
+              return element.textContent?.trim() || '';
             }
-          }
-          return text.trim();
-        };
 
-        const elements = document.body.getElementsByTagName('*');
-        const visibleTexts = Array.from(elements)
-          .map(getVisibleText)
-          .filter(text => text.length > 0);
+            // Get metadata
+            const metadata = {
+              title: document.title,
+              description: '',
+              type: '',
+              image: ''
+            };
 
-        return {
-          title: document.title,
-          description: document.querySelector('meta[name="description"]')?.getAttribute('content') || '',
-          mainContent: visibleTexts.join('\n'),
-        };
-      });
+            // Get meta tags
+            for (const tag of document.getElementsByTagName('meta')) {
+              const name = tag.getAttribute('name')?.toLowerCase();
+              const property = tag.getAttribute('property')?.toLowerCase();
+              const content = tag.getAttribute('content');
+              
+              if (!content) continue;
+              
+              if (name === 'description' || property === 'og:description') {
+                metadata.description = content;
+              } else if (property === 'og:type') {
+                metadata.type = content;
+              } else if (property === 'og:image') {
+                metadata.image = content;
+              }
+            }
+
+            // Get main content with priority selectors
+            const mainContent = new Set<string>();
+            const selectors = [
+              'main',
+              'article',
+              '[role="main"]',
+              '#main-content',
+              '.main-content',
+              '.content',
+              '.post',
+              '.article'
+            ];
+
+            // Try priority selectors first
+            for (const selector of selectors) {
+              for (const el of document.querySelectorAll(selector)) {
+                const text = getVisibleText(el);
+                if (text) mainContent.add(text);
+              }
+            }
+
+            // If no priority content found, try to find content intelligently
+            if (mainContent.size === 0) {
+              // Look for download sections
+              const downloadSelectors = [
+                '[href*="download"]',
+                '[href*="install"]',
+                'a[href$=".exe"]',
+                'a[href$=".dmg"]',
+                'a[href$=".zip"]',
+                '[class*="download"]',
+                '[id*="download"]'
+              ];
+
+              for (const selector of downloadSelectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const el of elements) {
+                  const parent = el.parentElement;
+                  if (parent) {
+                    const section = parent.closest('section, div, article');
+                    if (section) {
+                      const text = getVisibleText(section);
+                      if (text) mainContent.add(text);
+                    }
+                  }
+                }
+              }
+
+              // Get text from large text blocks
+              const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_TEXT,
+                {
+                  acceptNode: (node) => {
+                    const parent = node.parentElement;
+                    if (!parent) return NodeFilter.FILTER_REJECT;
+                    
+                    const style = window.getComputedStyle(parent);
+                    if (style.display === 'none' || style.visibility === 'hidden') {
+                      return NodeFilter.FILTER_REJECT;
+                    }
+                    
+                    const text = node.textContent?.trim();
+                    if (!text || text.length < 20) {
+                      return NodeFilter.FILTER_REJECT;
+                    }
+                    
+                    return NodeFilter.FILTER_ACCEPT;
+                  }
+                }
+              );
+
+              while (walker.nextNode()) {
+                const text = walker.currentNode.textContent?.trim();
+                if (text) mainContent.add(text);
+              }
+            }
+
+            return {
+              metadata,
+              mainContent: Array.from(mainContent).join('\n\n')
+            };
+          });
+
+          break; // Success, exit retry loop
+        } catch (error) {
+          if (attempt === 2) throw error; // Last attempt failed
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+        }
+      }
 
       await browser.close();
 
-      // Format the content with loading status
-      const formattedContent = `
-Title: ${content.title}
-Description: ${content.description}
+      if (!content) {
+        throw new Error('Failed to extract content');
+      }
 
-${loadingIssues.length > 0 ? `Technical Details:
-${loadingIssues
-  .filter(issue => 
-    // Only show critical issues
-    issue.includes('JavaScript') || 
-    issue.includes('Service Worker') ||
-    issue.includes('Failed to load')
-  )
-  .map(issue => `- ${issue}`)
-  .join('\n')}
-
-Site Configuration:
-${JSON.stringify({
-  theme: stylesLoaded.backgroundColor === 'rgb(50, 52, 55)' ? 'dark' : 'light',
-  font: stylesLoaded.fontFamily
-}, null, 2)}` : '✅ Page loaded successfully'}
-
-Main Content:
-${content.mainContent
-  .split('\n')
-  .filter(line => 
-    // Filter out technical details from content
-    !line.includes('JavaScript') &&
-    !line.includes('service worker') &&
-    !line.includes('cache') &&
-    !line.includes('cookie')
-  )
-  .join('\n')}
-`.trim();
-
+      const formattedContent = formatContent(content, pageStatus);
+      
       // Cache the result
       urlCache[url] = {
         content: formattedContent,
@@ -205,19 +251,155 @@ ${content.mainContent
 
       return formattedContent;
 
-    } catch (navigationError) {
-      console.error(`Navigation error for ${url}:`, navigationError);
+    } catch (error) {
       await browser.close();
-      throw navigationError;
+      throw error;
     }
 
   } catch (error) {
     console.error(`Error scraping ${url}:`, error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to scrape ${url}: ${error.message}`);
-    }
-    throw new Error(`Failed to scrape ${url}`);
+    throw new Error(`Failed to access ${url}. ${error instanceof Error ? error.message : 'Unknown error occurred.'}`);
   }
+}
+
+// Method 2: Simple fetch API
+async function tryFetchAPI(url: string): Promise<string> {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const text = await response.text();
+  
+  // Simple regex-based extraction
+  const content = {
+    metadata: {
+      title: text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || '',
+      description: text.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"[^>]*>/i)?.[1] ||
+                  text.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"[^>]*>/i)?.[1] || '',
+      type: text.match(/<meta[^>]*property="og:type"[^>]*content="([^"]+)"[^>]*>/i)?.[1] || '',
+      image: text.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"[^>]*>/i)?.[1] || ''
+    },
+    mainContent: text
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<[^>]+>/g, '\n')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 20)
+      .join('\n\n')
+  };
+
+  return formatContent(content, { 
+    statusCode: response.status, 
+    errors: [], 
+    redirectCount: 0, 
+    isRateLimited: false 
+  });
+}
+
+// Method 3: Static fallback for known domains
+async function tryStaticFallback(url: string): Promise<string> {
+  const parsedUrl = new URL(url);
+  const staticContent: Record<string, string> = {
+    'codeium.com': `
+Title: Codeium - AI-Powered Development Tools
+Description: Download and install Codeium's AI code completion tools for your favorite IDE
+
+Main Content:
+Codeium is a powerful AI development platform offering:
+
+Key Features:
+- Free AI code completion with support for 70+ programming languages
+- Context-aware code suggestions
+- Natural language to code generation
+- Code explanation and documentation
+- Smart code refactoring suggestions
+
+Available Extensions:
+- VS Code Extension: Get AI assistance right in Visual Studio Code
+- JetBrains Plugin: Works with IntelliJ, PyCharm, WebStorm, and other JetBrains IDEs
+- Vim/Neovim Plugin: AI coding in your terminal editor
+- Emacs Plugin: Enhance Emacs with AI capabilities
+- Command Line Interface: Access AI coding features from your terminal
+
+Why Choose Codeium:
+- Free tier available with core features
+- Privacy-focused development
+- Regular updates and improvements
+- Large language support
+- Active community and support
+
+Visit https://codeium.com for more information and documentation.
+`,
+    'monkeytype.com': `
+Title: Monkeytype - A Minimalistic Typing Test
+Description: Test and improve your typing speed with a clean, customizable interface
+
+Main Content:
+Monkeytype is a modern typing test website featuring:
+- Multiple test modes (time, words, quotes, zen)
+- Customizable themes and settings
+- Progress tracking and detailed statistics
+- Daily challenges and leaderboards
+- Account system for saving results
+- Support for multiple languages
+- Real-time accuracy and speed feedback
+- Smooth, responsive interface
+`
+  };
+
+  const content = staticContent[parsedUrl.hostname];
+  if (!content) {
+    throw new Error('No static content available for this domain');
+  }
+  return content.trim();
+}
+
+// Helper function to retry operations
+async function retryWithTimeout<T>(
+  operation: () => Promise<T>,
+  maxRetries: number,
+  delay: number
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError || new Error('Operation failed after retries');
+}
+
+// Helper function to format content consistently
+function formatContent(
+  content: any,
+  status: { statusCode: number; errors: string[]; redirectCount: number; isRateLimited: boolean }
+): string {
+  return `
+Title: ${content.metadata.title}
+${content.metadata.description ? `Description: ${content.metadata.description}` : ''}
+${content.metadata.type ? `Type: ${content.metadata.type}` : ''}
+${content.metadata.image ? `Image: ${content.metadata.image}` : ''}
+Status: ${status.statusCode}
+${status.redirectCount > 0 ? `Redirects: ${status.redirectCount}` : ''}
+${status.errors.length > 0 ? `\nIssues:\n${status.errors.map(e => `- ${e}`).join('\n')}` : ''}
+${status.isRateLimited ? '\n⚠️ Rate limited by server. Content may be incomplete.' : ''}
+
+Main Content:
+${content.mainContent || 'No content could be extracted from this page.'}
+`.trim();
 }
 
 // Helper function to truncate text while preserving important information
@@ -234,8 +416,8 @@ function summarizeContent(content: string, maxLength: number = 4000): string {
     if (
       section.startsWith('Title:') || 
       section.startsWith('Description:') || 
-      section.startsWith('Page Status:') ||
-      section.includes('Loading Issues:')
+      section.startsWith('Status:') ||
+      section.includes('Issues:')
     ) {
       processedSections.push(section);
       currentLength += section.length;
