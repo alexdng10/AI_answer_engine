@@ -50,199 +50,224 @@ async function scrapeUrl(url: string): Promise<string> {
         'Sec-Fetch-Dest': 'document'
       });
 
-      // Track page status
-      let pageStatus = {
-        redirectCount: 0,
-        finalUrl: url,
-        errors: [] as string[],
-        isRateLimited: false,
-        statusCode: 200
-      };
+      // Enable JavaScript console logging
+      page.on('console', msg => console.log('Browser console:', msg.text()));
 
-      // Better request handling
-      await page.setRequestInterception(true);
+      // Track network requests
+      const requests = new Map();
       page.on('request', request => {
-        const resourceType = request.resourceType();
-        if (['document', 'script', 'xhr', 'fetch'].includes(resourceType)) {
-          request.continue();
-        } else if (resourceType === 'image') {
-          // Only load images from the same domain
-          const imgUrl = new URL(request.url());
-          if (imgUrl.hostname === parsedUrl.hostname) {
-            request.continue();
-          } else {
-            request.abort();
-          }
-        } else {
-          request.abort();
-        }
-      });
-
-      // Handle responses
-      page.on('response', async response => {
-        const status = response.status();
-        pageStatus.statusCode = status;
+        requests.set(request.url(), request);
         
-        if (status === 429) {
-          pageStatus.isRateLimited = true;
-          pageStatus.errors.push('Rate limited by server');
-        } else if (status >= 300 && status <= 399) {
-          pageStatus.redirectCount++;
-          pageStatus.finalUrl = response.url();
-        } else if (status >= 400) {
-          pageStatus.errors.push(`HTTP ${status} error`);
+        // Allow all resource types for modern web apps
+        request.continue();
+      });
+
+      // Handle responses and collect API data
+      const apiData = new Map();
+      page.on('response', async response => {
+        const url = response.url();
+        const request = requests.get(url);
+        
+        try {
+          // Check if response is JSON
+          const contentType = response.headers()['content-type'];
+          if (contentType?.includes('application/json')) {
+            const json = await response.json();
+            apiData.set(url, json);
+          }
+        } catch (e) {
+          // Not JSON, ignore
         }
       });
 
-      // Navigate with retry for timeouts
-      let content = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          await page.goto(url, {
-            waitUntil: 'networkidle0',
-            timeout: 20000
-          });
+      // Wait longer for modern SPAs
+      await page.goto(url, {
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      });
 
-          // Wait for dynamic content
-          await page.waitForFunction(() => {
-            const body = document.body;
-            return body && body.innerHTML.length > 100;
-          }, { timeout: 5000 }).catch(() => {
-            pageStatus.errors.push('Timeout waiting for content');
-          });
+      // Wait for dynamic content
+      await page.waitForFunction(() => {
+        // Check if main content is loaded
+        const selectors = [
+          'main',
+          'article',
+          '[role="main"]',
+          '#main-content',
+          '.main-content',
+          '.content',
+          '[data-testid]', // Common in React apps
+          '[class*="container"]',
+          '[class*="wrapper"]'
+        ];
+        
+        return selectors.some(selector => 
+          document.querySelector(selector)?.textContent?.trim().length > 100
+        );
+      }, { timeout: 10000 }).catch(() => {
+        console.log('Timeout waiting for content selectors');
+      });
 
-          // Extract content
-          content = await page.evaluate(() => {
-            function getVisibleText(element: Element): string {
-              const style = window.getComputedStyle(element);
-              if (style.display === 'none' || style.visibility === 'hidden') return '';
-              return element.textContent?.trim() || '';
-            }
-
-            // Get metadata
-            const metadata = {
-              title: document.title,
-              description: '',
-              type: '',
-              image: ''
-            };
-
-            // Get meta tags
-            for (const tag of document.getElementsByTagName('meta')) {
-              const name = tag.getAttribute('name')?.toLowerCase();
-              const property = tag.getAttribute('property')?.toLowerCase();
-              const content = tag.getAttribute('content');
-              
-              if (!content) continue;
-              
-              if (name === 'description' || property === 'og:description') {
-                metadata.description = content;
-              } else if (property === 'og:type') {
-                metadata.type = content;
-              } else if (property === 'og:image') {
-                metadata.image = content;
-              }
-            }
-
-            // Get main content with priority selectors
-            const mainContent = new Set<string>();
-            const selectors = [
-              'main',
-              'article',
-              '[role="main"]',
-              '#main-content',
-              '.main-content',
-              '.content',
-              '.post',
-              '.article'
-            ];
-
-            // Try priority selectors first
-            for (const selector of selectors) {
-              for (const el of document.querySelectorAll(selector)) {
-                const text = getVisibleText(el);
-                if (text) mainContent.add(text);
-              }
-            }
-
-            // If no priority content found, try to find content intelligently
-            if (mainContent.size === 0) {
-              // Look for download sections
-              const downloadSelectors = [
-                '[href*="download"]',
-                '[href*="install"]',
-                'a[href$=".exe"]',
-                'a[href$=".dmg"]',
-                'a[href$=".zip"]',
-                '[class*="download"]',
-                '[id*="download"]'
-              ];
-
-              for (const selector of downloadSelectors) {
-                const elements = document.querySelectorAll(selector);
-                for (const el of elements) {
-                  const parent = el.parentElement;
-                  if (parent) {
-                    const section = parent.closest('section, div, article');
-                    if (section) {
-                      const text = getVisibleText(section);
-                      if (text) mainContent.add(text);
-                    }
-                  }
-                }
-              }
-
-              // Get text from large text blocks
-              const walker = document.createTreeWalker(
-                document.body,
-                NodeFilter.SHOW_TEXT,
-                {
-                  acceptNode: (node) => {
-                    const parent = node.parentElement;
-                    if (!parent) return NodeFilter.FILTER_REJECT;
-                    
-                    const style = window.getComputedStyle(parent);
-                    if (style.display === 'none' || style.visibility === 'hidden') {
-                      return NodeFilter.FILTER_REJECT;
-                    }
-                    
-                    const text = node.textContent?.trim();
-                    if (!text || text.length < 20) {
-                      return NodeFilter.FILTER_REJECT;
-                    }
-                    
-                    return NodeFilter.FILTER_ACCEPT;
-                  }
-                }
-              );
-
-              while (walker.nextNode()) {
-                const text = walker.currentNode.textContent?.trim();
-                if (text) mainContent.add(text);
-              }
-            }
-
-            return {
-              metadata,
-              mainContent: Array.from(mainContent).join('\n\n')
-            };
-          });
-
-          break; // Success, exit retry loop
-        } catch (error) {
-          if (attempt === 2) throw error; // Last attempt failed
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+      // Extract content with API data integration
+      const content = await page.evaluate((apiDataEntries) => {
+        function getVisibleText(element) {
+          const style = window.getComputedStyle(element);
+          if (style.display === 'none' || style.visibility === 'hidden') return '';
+          
+          // Filter out navigation, footer, etc.
+          const role = element.getAttribute('role')?.toLowerCase();
+          if (['navigation', 'banner', 'footer'].includes(role)) return '';
+          
+          return element.textContent?.trim() || '';
         }
-      }
+
+        // Get metadata with enhanced selectors
+        const metadata = {
+          title: document.title,
+          description: '',
+          type: '',
+          image: ''
+        };
+
+        // Try multiple meta tag formats
+        const metaSelectors = {
+          description: [
+            'meta[name="description"]',
+            'meta[property="og:description"]',
+            'meta[name="twitter:description"]'
+          ],
+          image: [
+            'meta[property="og:image"]',
+            'meta[name="twitter:image"]',
+            'meta[itemprop="image"]'
+          ]
+        };
+
+        for (const [key, selectors] of Object.entries(metaSelectors)) {
+          for (const selector of selectors) {
+            const content = document.querySelector(selector)?.getAttribute('content');
+            if (content) {
+              metadata[key] = content;
+              break;
+            }
+          }
+        }
+
+        // Get main content with priority for web app structures
+        const mainContent = new Set();
+        
+        // Modern web app selectors
+        const contentSelectors = [
+          // Main content
+          'main', '[role="main"]', '#root', '#app', '#__next',
+          // Common component names
+          '[class*="content"]', '[class*="container"]', '[class*="wrapper"]',
+          // Common data attributes
+          '[data-testid]', '[data-component]', '[data-section]',
+          // Specific content types
+          'article', '.post', '.article',
+          // Download/documentation sections
+          '[class*="download"]', '[class*="docs"]', '[class*="documentation"]',
+          // Pricing/features sections
+          '[class*="pricing"]', '[class*="features"]'
+        ];
+
+        // First pass: try to get structured content
+        for (const selector of contentSelectors) {
+          for (const el of document.querySelectorAll(selector)) {
+            const text = getVisibleText(el);
+            if (text && text.length > 50) { // Minimum content length
+              mainContent.add(text);
+            }
+          }
+        }
+
+        // Second pass: look for interactive elements and their context
+        const interactiveSelectors = [
+          'button', 'a', 'input', 'select',
+          '[role="button"]', '[role="link"]',
+          '[class*="button"]', '[class*="link"]'
+        ];
+
+        for (const selector of interactiveSelectors) {
+          for (const el of document.querySelectorAll(selector)) {
+            const text = el.textContent?.trim();
+            if (text && (text.includes('Download') || text.includes('Install'))) {
+              // Get the parent section for context
+              const section = el.closest('section, div[class*="section"], div[class*="container"]');
+              if (section) {
+                const text = getVisibleText(section);
+                if (text) mainContent.add(text);
+              }
+            }
+          }
+        }
+
+        // Third pass: if still no content, try text nodes with meaningful content
+        if (mainContent.size === 0) {
+          const walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            {
+              acceptNode: (node) => {
+                const parent = node.parentElement;
+                if (!parent) return NodeFilter.FILTER_REJECT;
+                
+                const style = window.getComputedStyle(parent);
+                if (style.display === 'none' || style.visibility === 'hidden') {
+                  return NodeFilter.FILTER_REJECT;
+                }
+                
+                const text = node.textContent?.trim();
+                // Look for meaningful content
+                if (!text || text.length < 20 || text.split(' ').length < 4) {
+                  return NodeFilter.FILTER_REJECT;
+                }
+                
+                return NodeFilter.FILTER_ACCEPT;
+              }
+            }
+          );
+
+          while (walker.nextNode()) {
+            const text = walker.currentNode.textContent?.trim();
+            if (text) mainContent.add(text);
+          }
+        }
+
+        // Integrate API data if available
+        const apiContent = apiDataEntries.map(([url, data]) => {
+          if (typeof data === 'object') {
+            return Object.entries(data)
+              .filter(([key]) => !key.toLowerCase().includes('token')) // Skip sensitive data
+              .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+              .join('\n');
+          }
+          return '';
+        }).filter(Boolean);
+
+        if (apiContent.length > 0) {
+          mainContent.add('\nAPI Data:\n' + apiContent.join('\n'));
+        }
+
+        return {
+          metadata,
+          mainContent: Array.from(mainContent).join('\n\n')
+        };
+      }, Array.from(apiData.entries()));
 
       await browser.close();
 
-      if (!content) {
-        throw new Error('Failed to extract content');
-      }
+      const formattedContent = `
+Title: ${content.metadata.title}
+${content.metadata.description ? `Description: ${content.metadata.description}` : ''}
+${content.metadata.type ? `Type: ${content.metadata.type}` : ''}
+${content.metadata.image ? `Image: ${content.metadata.image}` : ''}
 
-      const formattedContent = formatContent(content, pageStatus);
-      
+Main Content:
+${content.mainContent || 'No content could be extracted from this page.'}
+`.trim();
+
       // Cache the result
       urlCache[url] = {
         content: formattedContent,
@@ -302,64 +327,6 @@ async function tryFetchAPI(url: string): Promise<string> {
     redirectCount: 0, 
     isRateLimited: false 
   });
-}
-
-// Method 3: Static fallback for known domains
-async function tryStaticFallback(url: string): Promise<string> {
-  const parsedUrl = new URL(url);
-  const staticContent: Record<string, string> = {
-    'codeium.com': `
-Title: Codeium - AI-Powered Development Tools
-Description: Download and install Codeium's AI code completion tools for your favorite IDE
-
-Main Content:
-Codeium is a powerful AI development platform offering:
-
-Key Features:
-- Free AI code completion with support for 70+ programming languages
-- Context-aware code suggestions
-- Natural language to code generation
-- Code explanation and documentation
-- Smart code refactoring suggestions
-
-Available Extensions:
-- VS Code Extension: Get AI assistance right in Visual Studio Code
-- JetBrains Plugin: Works with IntelliJ, PyCharm, WebStorm, and other JetBrains IDEs
-- Vim/Neovim Plugin: AI coding in your terminal editor
-- Emacs Plugin: Enhance Emacs with AI capabilities
-- Command Line Interface: Access AI coding features from your terminal
-
-Why Choose Codeium:
-- Free tier available with core features
-- Privacy-focused development
-- Regular updates and improvements
-- Large language support
-- Active community and support
-
-Visit https://codeium.com for more information and documentation.
-`,
-    'monkeytype.com': `
-Title: Monkeytype - A Minimalistic Typing Test
-Description: Test and improve your typing speed with a clean, customizable interface
-
-Main Content:
-Monkeytype is a modern typing test website featuring:
-- Multiple test modes (time, words, quotes, zen)
-- Customizable themes and settings
-- Progress tracking and detailed statistics
-- Daily challenges and leaderboards
-- Account system for saving results
-- Support for multiple languages
-- Real-time accuracy and speed feedback
-- Smooth, responsive interface
-`
-  };
-
-  const content = staticContent[parsedUrl.hostname];
-  if (!content) {
-    throw new Error('No static content available for this domain');
-  }
-  return content.trim();
 }
 
 // Helper function to retry operations
@@ -454,99 +421,64 @@ function summarizeContent(content: string, maxLength: number = 4000): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { message, urls = [], previousMessages = [] } = body;
+    const { messages, urls } = body;
 
-    if (!message && urls.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Message or URLs are required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
+    let scrapedContent = '';
+    let failedUrls = [];
+
+    // Scrape all provided URLs
+    if (urls && urls.length > 0) {
+      for (const url of urls) {
+        try {
+          const content = await scrapeUrl(url);
+          scrapedContent += `\n\nSource:\n${url}\n${content}`;
+        } catch (error) {
+          console.error(`Error scraping ${url}:`, error);
+          failedUrls.push(url);
+          scrapedContent += `\n\nSource:\n${url}\nThis page is currently inaccessible. Please try again later or check if the URL is correct.`;
         }
-      );
+      }
     }
 
-    // Scrape content from provided URLs with caching
-    const scrapedResults = await Promise.allSettled(
-      urls.map((url: string) => scrapeUrl(url))
-    );
+    // Prepare system message with scraped content
+    const systemMessage = `You are an AI assistant that helps users understand web content.${
+      scrapedContent ? `\n\nSources:${scrapedContent}` : ''
+    }${
+      failedUrls.length > 0 ? `\n\n⚠️ Some URLs were inaccessible: ${failedUrls.join(', ')}` : ''
+    }`;
 
-    // Filter successful scrapes and collect errors
-    const successfulScrapes: string[] = [];
-    const failedUrls: string[] = [];
-
-    scrapedResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        const summarized = summarizeContent(result.value);
-        successfulScrapes.push(summarized);
-      } else {
-        console.error(`Failed to scrape ${urls[index]}:`, result.reason);
-        failedUrls.push(urls[index]);
-      }
-    });
-
-    // Create a map of URLs to their summarized content
-    const urlContentMap = urls.reduce((acc, url, index) => {
-      if (scrapedResults[index].status === 'fulfilled') {
-        acc[url] = summarizeContent((scrapedResults[index] as PromiseFulfilledResult<string>).value);
-      }
-      return acc;
-    }, {} as { [key: string]: string });
-
-    // Convert previous messages to the correct format for Groq
-    const conversationHistory = previousMessages
-      .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
-      .map((msg: any) => ({
-        role: msg.role === 'ai' ? 'assistant' : msg.role,
-        content: msg.content
-      }))
-      .slice(-3);
-
-    // Combine scraped content with user message
-    const context = successfulScrapes.length
-      ? `Context from provided URLs:\n${Object.entries(urlContentMap)
-          .map(([url, content]) => `[${url}]:\n${content}`)
-          .join("\n\n")}${failedUrls.length ? `\n\nNote: Failed to scrape: ${failedUrls.join(", ")}` : ""}\n\nUser question: ${message}`
-      : message;
-
-    const finalContext = summarizeContent(context, 6000); // Increased context size for larger model
-
+    // Call Groq API
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content:
-            "You are a helpful AI assistant. When answering questions, if context from URLs is provided, use that information and cite the sources in your response. Always reference the specific URL when citing information. If CSS or styling issues are detected, explain them clearly. If no context is provided, answer based on your general knowledge.",
+          content: systemMessage
         },
-        ...conversationHistory,
-        {
-          role: "user",
-          content: finalContext,
-        },
+        ...messages
       ],
       model: "mixtral-8x7b-32768",
-      temperature: 0.3, // Reduced temperature for more focused responses
-      max_tokens: 4096, // Increased token limit
+      temperature: 0.5,
+      max_tokens: 4096,
+      top_p: 1,
+      stream: false
     });
 
-    return new Response(JSON.stringify({
-      content: completion.choices[0]?.message?.content || "Sorry, I couldn't generate a response.",
-      sources: urls,
-      failedUrls: failedUrls.length > 0 ? failedUrls : undefined,
-    }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        content: completion.choices[0]?.message?.content || "No response generated",
+        failedUrls: failedUrls
+      }),
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
   } catch (error) {
-    console.error("Chat API error:", error);
-    let errorMessage = "Failed to process your request";
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
+    console.error('Error in POST handler:', error);
     return new Response(
       JSON.stringify({ 
-        error: errorMessage,
-        detail: error instanceof Error ? error.stack : undefined
+        error: 'Failed to process request',
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
         status: 500,
