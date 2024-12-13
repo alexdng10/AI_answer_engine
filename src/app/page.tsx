@@ -25,55 +25,47 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSend = async () => {
-    if (!message.trim() && !urls.length) return;
+    if (!message.trim() && urls.length === 0) return;
 
-    // Add user message to the conversation
-    const userMessage = { 
-      role: "user" as const, 
-      content: message,
-      sources: urls
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setMessage("");
     setIsLoading(true);
+    const currentMessage = message;
+    setMessage("");
+
+    // Add user message
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: currentMessage }
+    ]);
 
     try {
-      // Get all unique URLs from the conversation context
-      const allUrls = Array.from(new Set([
-        ...urlContext.map(ctx => ctx.url),
-        ...urls
-      ]));
-
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          message,
-          urls: allUrls,
-          previousMessages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-            sources: msg.sources
-          }))
+          message: currentMessage,
+          urls,
+          previousMessages: messages
         }),
       });
 
       const data = await response.json();
       
-      if (response.ok) {
-        // Update URL context with any failed URLs
-        if (urls.length > 0) {
-          setUrlContext(prev => [
-            ...prev,
-            ...urls.map(url => ({
-              url,
-              addedAt: Date.now(),
-              failed: data.failedUrls?.includes(url)
-            }))
-          ]);
-        }
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to get response");
+      }
+
+      // Update URL context with any failed URLs
+      if (urls.length > 0) {
+        setUrlContext(prev => [
+          ...prev,
+          ...urls.map(url => ({
+            url,
+            addedAt: Date.now(),
+            failed: data.failedUrls?.includes(url)
+          }))
+        ]);
 
         // If there were failed URLs, add a warning message
         if (data.failedUrls?.length > 0) {
@@ -81,23 +73,22 @@ export default function Home() {
             ...prev,
             {
               role: "assistant",
-              content: `⚠️ Failed to access some URLs: ${data.failedUrls.join(", ")}`,
+              content: `⚠️ Failed to access: ${data.failedUrls.join(", ")}`,
               error: true
             }
           ]);
         }
-
-        setMessages(prev => [
-          ...prev,
-          { 
-            role: "assistant", 
-            content: data.content,
-            sources: data.sources?.filter(url => !data.failedUrls?.includes(url))
-          },
-        ]);
-      } else {
-        throw new Error(data.error || "Failed to get response");
       }
+
+      // Add assistant message
+      setMessages(prev => [
+        ...prev,
+        { 
+          role: "assistant", 
+          content: data.content,
+          sources: data.sources
+        },
+      ]);
     } catch (error) {
       console.error("Error:", error);
       setMessages(prev => [
@@ -112,10 +103,7 @@ export default function Home() {
       ]);
     } finally {
       setIsLoading(false);
-      // Don't clear URLs immediately, keep them for context
-      if (urls.length > 0) {
-        setUrls([]); // Only clear the input field
-      }
+      setUrls([]); // Clear URLs after sending
     }
   };
 
@@ -233,7 +221,7 @@ export default function Home() {
             />
             <button
               onClick={handleSend}
-              disabled={isLoading || (!message.trim() && !urls.length)}
+              disabled={isLoading || (!message.trim() && urls.length === 0)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send
