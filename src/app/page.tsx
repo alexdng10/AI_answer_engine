@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Message = {
   role: "user" | "assistant";
@@ -24,9 +24,21 @@ export default function Home() {
     { role: "assistant", content: "Hello! How can I help you today? You can paste URLs for me to analyze, or ask a question directly." },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [retryAfter, setRetryAfter] = useState<number | null>(null);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (retryAfter) {
+      timer = setTimeout(() => setRetryAfter(null), retryAfter * 1000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [retryAfter]);
 
   const handleSend = async () => {
     if (!message.trim() && urls.length === 0) return;
+    if (retryAfter) return; // Don't send if we're rate limited
 
     setIsLoading(true);
     const currentMessage = message;
@@ -50,6 +62,12 @@ export default function Home() {
           previousMessages: messages
         }),
       });
+
+      // Check for rate limiting
+      const retryAfterHeader = response.headers.get('Retry-After');
+      if (retryAfterHeader) {
+        setRetryAfter(parseInt(retryAfterHeader));
+      }
 
       const data = await response.json();
       
@@ -112,7 +130,7 @@ export default function Home() {
         { 
           role: "assistant", 
           content: error instanceof Error 
-            ? `Error: ${error.message}` 
+            ? error.message.replace(/\b(status code|code|HTTP) \d{3}\b/gi, '')
             : "Sorry, I encountered an error processing your request.",
           error: true
         },
@@ -234,15 +252,18 @@ export default function Home() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-              placeholder="Ask a question..."
+              placeholder={retryAfter 
+                ? `Please wait ${retryAfter} seconds before sending another message...` 
+                : "Ask a question..."}
               className="flex-1 p-2 bg-gray-800 text-white rounded-lg"
+              disabled={isLoading || retryAfter !== null}
             />
             <button
               onClick={handleSend}
-              disabled={isLoading || (!message.trim() && urls.length === 0)}
+              disabled={isLoading || retryAfter !== null || (!message.trim() && urls.length === 0)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Send
+              {isLoading ? "Processing..." : retryAfter ? `Wait ${retryAfter}s` : "Send"}
             </button>
           </div>
         </div>

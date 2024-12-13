@@ -31,7 +31,6 @@ Main Content:
 ${content.mainContent || 'No content could be extracted from this page.'}
 
 Status:
-Status Code: ${status.statusCode}
 ${status.errors.length > 0 ? `Errors: ${status.errors.join(', ')}` : ''}
 ${status.redirectCount > 0 ? `Redirect Count: ${status.redirectCount}` : ''}
 ${status.isRateLimited ? 'Rate Limited: Yes' : ''}
@@ -359,54 +358,68 @@ async function retryWithTimeout<T>(
 }
 
 // Helper function to truncate text while preserving important information
-function summarizeContent(content: string, maxLength: number = 4000): string {
-  if (content.length <= maxLength) return content;
-
-  // Split content into sections
-  const sections = content.split('\n\n');
+function summarizeContent(content: string): string {
+  // Remove any mentions of status codes
+  content = content.replace(/\b(status code|code|HTTP) \d{3}\b/gi, '');
   
-  if (sections.length === 1) {
-    // Single section, just truncate
-    return content.slice(0, maxLength - 3) + '...';
-  }
-
-  // Calculate target length for each section
-  const targetSectionLength = Math.floor(maxLength / sections.length);
+  // Remove any remaining technical details that users don't need to see
+  content = content.replace(/\b(response|request) status:?\s*\d+/gi, '');
   
-  // Truncate each section proportionally
-  const truncatedSections = sections.map(section => {
-    if (section.length <= targetSectionLength) return section;
-    return section.slice(0, targetSectionLength - 3) + '...';
-  });
-
-  // Join sections back together
-  let result = truncatedSections.join('\n\n');
-  
-  // Final truncation if still too long
-  if (result.length > maxLength) {
-    result = result.slice(0, maxLength - 3) + '...';
-  }
+  const lines = content.split('\n');
+  const result = lines
+    .filter(line => line.trim().length > 0)  // Remove empty lines
+    .filter(line => !line.includes('<!DOCTYPE'))  // Remove HTML declarations
+    .filter(line => !line.match(/<\/?[a-z][\s\S]*>/i))  // Remove HTML tags
+    .join('\n')
+    .trim();
 
   return result;
 }
 
 // Helper function to chunk content intelligently
-function chunkContent(content: string, maxTokens: number = 4000): string[] {
-  // Rough estimate: 1 token ≈ 4 characters
-  const maxChars = maxTokens * 4;
+function chunkContent(content: string, maxTokens: number = 2000): string[] {
+  // More conservative estimate: 1 token ≈ 3 characters
+  const maxChars = maxTokens * 3;
   
   if (content.length <= maxChars) return [content];
 
   const chunks: string[] = [];
-  const sections = content.split('\n\n');
   let currentChunk = '';
 
-  for (const section of sections) {
-    if (currentChunk.length + section.length + 2 <= maxChars) {
-      currentChunk += (currentChunk ? '\n\n' : '') + section;
+  // Split by paragraphs first
+  const paragraphs = content.split('\n\n');
+
+  for (const paragraph of paragraphs) {
+    // If paragraph is too long, split by sentences
+    if (paragraph.length > maxChars) {
+      const sentences = paragraph.split(/(?<=[.!?])\s+/);
+      for (const sentence of sentences) {
+        if (currentChunk.length + sentence.length + 2 <= maxChars) {
+          currentChunk += (currentChunk ? ' ' : '') + sentence;
+        } else {
+          if (currentChunk) chunks.push(currentChunk);
+          // If single sentence is too long, split by words
+          if (sentence.length > maxChars) {
+            const words = sentence.split(' ');
+            currentChunk = '';
+            for (const word of words) {
+              if (currentChunk.length + word.length + 1 <= maxChars) {
+                currentChunk += (currentChunk ? ' ' : '') + word;
+              } else {
+                if (currentChunk) chunks.push(currentChunk);
+                currentChunk = word;
+              }
+            }
+          } else {
+            currentChunk = sentence;
+          }
+        }
+      }
+    } else if (currentChunk.length + paragraph.length + 2 <= maxChars) {
+      currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
     } else {
       if (currentChunk) chunks.push(currentChunk);
-      currentChunk = section;
+      currentChunk = paragraph;
     }
   }
 
@@ -439,8 +452,69 @@ function mergeResponses(responses: string[]): string {
   return merged.join('. ') + '.';
 }
 
+// Rate limiting configuration
+const RATE_LIMIT = {
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 20, // max requests per window
+  delayMs: 1000, // delay between requests
+};
+
+// Simple in-memory store for rate limiting
+const requestStore = new Map<string, { count: number; timestamp: number }>();
+
+function isRateLimited(clientId: string): boolean {
+  const now = Date.now();
+  const clientRequests = requestStore.get(clientId);
+
+  if (!clientRequests) {
+    requestStore.set(clientId, { count: 1, timestamp: now });
+    return false;
+  }
+
+  // Reset count if window has passed
+  if (now - clientRequests.timestamp > RATE_LIMIT.windowMs) {
+    requestStore.set(clientId, { count: 1, timestamp: now });
+    return false;
+  }
+
+  // Check if limit exceeded
+  if (clientRequests.count >= RATE_LIMIT.maxRequests) {
+    return true;
+  }
+
+  // Increment count
+  clientRequests.count++;
+  return false;
+}
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function POST(req: Request) {
   try {
+    const clientId = req.headers.get('x-forwarded-for') || 'unknown';
+    
+    // Check rate limit
+    if (isRateLimited(clientId)) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many requests. Please wait a moment before trying again.',
+          content: "I'm receiving too many requests. Please wait a brief moment before sending another message.",
+          failedUrls: []
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Retry-After': '60'
+          } 
+        }
+      );
+    }
+
+    // Add delay between requests
+    await delay(RATE_LIMIT.delayMs);
+
     const body = await req.json();
     const { message, urls = [], previousMessages = [] } = body;
     
@@ -448,57 +522,78 @@ export async function POST(req: Request) {
     const messageUrls = (message?.match(/(https?:\/\/[^\s]+)/g) || []) as string[];
     const allUrls = Array.from(new Set([...urls, ...messageUrls]));
     
-    // Scrape content from URLs
+    // Scrape content from URLs with a limit
     const scrapedContents: string[] = [];
     const failedUrls: string[] = [];
     
-    for (const url of allUrls) {
+    for (const url of allUrls.slice(0, 5)) { // Limit to 5 URLs at a time
       try {
         const content = await scrapeUrl(url);
-        scrapedContents.push(content);
+        // Truncate content if too long
+        scrapedContents.push(content.slice(0, 10000)); // Limit each URL content
+        await delay(500); // Delay between scrapes
       } catch (error) {
         console.error(`Error scraping ${url}:`, error);
         failedUrls.push(url);
       }
     }
 
-    // Prepare base prompt
+    if (allUrls.length > 5) {
+      failedUrls.push(...allUrls.slice(5));
+    }
+
+    // Prepare base prompt with limited content
     let prompt = message;
     if (scrapedContents.length > 0) {
-      const sources = scrapedContents.map(content => summarizeContent(content)).join('\n\n');
+      const sources = scrapedContents
+        .map(content => summarizeContent(content))
+        .join('\n\n')
+        .slice(0, 15000); // Limit total source content
       prompt = `Sources:\n\n${sources}\n\n${message}`;
     }
 
-    // Split into chunks if needed
+    // Split into smaller chunks
     const chunks = chunkContent(prompt);
     const responses: string[] = [];
 
-    // Process each chunk
-    for (const chunk of chunks) {
-      const completion = await groq.chat.completions.create({
-        messages: [
-          ...previousMessages.map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-          { 
-            role: 'user', 
-            content: chunk + (chunks.length > 1 ? '\n\nNote: This is part of a larger content. Please focus on extracting and analyzing the information from this part.' : '')
-          }
-        ],
-        model: 'mixtral-8x7b-32768',
-        temperature: 0.5,
-        max_tokens: 4096,
-        top_p: 1,
-        stop: null,
-        stream: false,
-      });
+    // Process each chunk with delay and error handling
+    for (const [index, chunk] of chunks.entries()) {
+      try {
+        await delay(1000); // Delay between chunks
+        
+        const completion = await groq.chat.completions.create({
+          messages: [
+            ...previousMessages.slice(-3).map(m => ({ // Keep only last 3 messages for context
+              role: m.role,
+              content: m.content.slice(0, 1000), // Limit message size
+            })),
+            { 
+              role: 'user', 
+              content: chunk + (chunks.length > 1 ? '\n\nNote: This is part of a larger content. Please focus on extracting and analyzing the information from this part.' : '')
+            }
+          ],
+          model: 'mixtral-8x7b-32768',
+          temperature: 0.5,
+          max_tokens: 2000, // Reduced token limit
+          top_p: 1,
+          stop: null,
+          stream: false,
+        });
 
-      responses.push(completion.choices[0]?.message?.content || '');
+        responses.push(completion.choices[0]?.message?.content || '');
+      } catch (error) {
+        if (error.message?.includes('413')) {
+          console.error('Chunk too large, skipping:', error);
+          continue; // Skip this chunk and continue with others
+        }
+        throw error; // Re-throw other errors
+      }
     }
 
-    // Merge responses if needed
-    const finalResponse = chunks.length > 1 ? mergeResponses(responses) : responses[0];
+    // Merge responses if we have any
+    const finalResponse = responses.length > 0 
+      ? mergeResponses(responses)
+      : "I apologize, but I couldn't process the content due to size limitations. Please try with a smaller amount of content or fewer URLs.";
 
     return new Response(
       JSON.stringify({
@@ -515,19 +610,39 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error('Error in chat route:', error);
+    const isPayloadError = error.message?.includes('413') || error.message?.includes('too large');
+    
+    if (isPayloadError) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Content too large to process. Please try with less content or fewer URLs.',
+          content: "I apologize, but that's a bit too much for me to process at once. Could you try with less content or fewer URLs?",
+          failedUrls: []
+        }),
+        { 
+          status: 413,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
     if (error.message?.includes('rate_limit_exceeded')) {
       return new Response(
         JSON.stringify({ 
-          error: 'Rate limit exceeded. Please try again in a moment.',
-          content: "I apologize, but I'm receiving too many requests right now. Please try sending a shorter message or wait a moment before trying again.",
+          error: 'Please wait a moment before sending another message.',
+          content: "I need a brief moment to process your request. Please try again shortly.",
           failedUrls: []
         }),
         { 
           status: 429, 
-          headers: { 'Content-Type': 'application/json' } 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Retry-After': '60'
+          } 
         }
       );
     }
+
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Failed to process request',
