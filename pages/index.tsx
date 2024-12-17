@@ -142,6 +142,9 @@ export default function Home() {
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
                 CS3319 Quiz Mode
               </h1>
+              <div className="text-gray-400">
+                Good luck with your finals! - Alex Dang
+              </div>
             </div>
           </div>
         </header>
@@ -163,6 +166,9 @@ export default function Home() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
               InsightAI
             </h1>
+            <div className="text-gray-400">
+              Good luck with your finals! - Alex Dang
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <button
