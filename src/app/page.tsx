@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiSend, FiLink, FiClock, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiSend, FiLink, FiClock, FiUser, FiMessageSquare, FiBook } from 'react-icons/fi';
+import Quiz from '@/components/Quiz';
+import { cs3319Questions } from '@/data/cs3319questions';
 
 type Message = {
   role: "user" | "assistant";
@@ -31,6 +33,7 @@ export default function Home() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
+  const [isQuizMode, setIsQuizMode] = useState(false);
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
@@ -161,6 +164,28 @@ export default function Home() {
     }
   };
 
+  if (isQuizMode) {
+    return (
+      <main className="flex min-h-screen flex-col bg-gradient-to-b from-gray-900 to-black">
+        {/* Header */}
+        <header className="fixed top-0 w-full bg-black/50 backdrop-blur-md z-50 border-b border-gray-800">
+          <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <FiBook className="text-blue-500 text-2xl" />
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+                CS3319 Quiz Mode
+              </h1>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 pt-24">
+          <Quiz questions={cs3319Questions} onExit={() => setIsQuizMode(false)} />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-b from-gray-900 to-black">
       {/* Header */}
@@ -172,8 +197,17 @@ export default function Home() {
               InsightAI
             </h1>
           </div>
-          <div className="text-sm text-gray-400">
-            Intelligent Research Assistant
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsQuizMode(true)}
+              className="px-4 py-2 bg-purple-600/20 text-purple-200 border border-purple-500/30 rounded-lg hover:bg-purple-600/30 transition-colors flex items-center space-x-2"
+            >
+              <FiBook />
+              <span>CS3319 Quiz</span>
+            </button>
+            <div className="text-sm text-gray-400">
+              Intelligent Research Assistant
+            </div>
           </div>
         </div>
       </header>
