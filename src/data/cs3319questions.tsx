@@ -240,7 +240,7 @@ export const cs3319Questions: QuizQuestion[] = [
       "a and c",
       "b and c"
     ],
-    correctAnswer: 1,
+    correctAnswer: 0,
     explanation: "The lossless join property ensures that when we decompose a relation and then rejoin it, we don't lose any tuples - we get back exactly the same relation we started with.",
     category: "Normalization",
     difficulty: "medium",
