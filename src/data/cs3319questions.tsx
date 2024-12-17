@@ -381,5 +381,133 @@ export const cs3319Questions: QuizQuestion[] = [
     category: "Referential Integrity",
     difficulty: "medium",
     year: "Summer 2000"
+  },
+  {
+    id: 33,
+    question: "Assume you have a table Employee with the following fields {SSN, LastName, Sex, Email, DeptCode, DeptName, DeptLocation}. What problem would occur when deleting employees from this table that is not in third normal form?",
+    options: [
+      "You might delete an employee you didn’t mean too",
+      "If the employee you are deleting is the last employee in a department, then when you delete that employee, you also accidentally lose all information about that department.",
+      "You can no longer delete employees by using referencing their department code",
+      "No problems occur when you do deletions from a table that is NOT in third normal form"
+    ],
+    correctAnswer: 1,
+    explanation: "When a table is not in third normal form, deleting the last employee in a department may result in the accidental loss of all department information, which violates data integrity.",
+    category: "Normalization",
+    difficulty: "medium"
+  },
+  {
+    id: 34,
+    question: "When optimizing a query, we should always pick the best solution for performing the query",
+    options: ["True", "False"],
+    correctAnswer: 1,
+    explanation: "False. Query optimization involves balancing cost and resources. The best solution is sometimes not always the most practical.",
+    category: "Query Optimization",
+    difficulty: "easy"
+  },
+  {
+    id: 35,
+    question: "When optimizing a query, it is usually better to do the selects before the joins",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True. Performing selects first reduces the number of rows involved in joins, improving efficiency.",
+    category: "Query Optimization",
+    difficulty: "easy"
+  },
+  {
+    id: 36,
+    question: "When optimizing a query, the system creates a",
+    options: [
+      "Query table",
+      "Query graph",
+      "B+ tree",
+      "Query tree"
+    ],
+    correctAnswer: 3,
+    explanation: "The query tree is used to represent and optimize the query execution plan in database systems.",
+    category: "Query Optimization",
+    difficulty: "medium"
+  },
+  {
+    id: 37,
+    question: "On tables that have no index and no hash key, it is faster to do a join with tables that are both sorted on the join key than with unsorted tables.",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True. Sorting tables on the join key allows for efficient merging during the join operation.",
+    category: "Query Optimization",
+    difficulty: "medium"
+  },
+  {
+    id: 38,
+    question: "When doing a query that is pipelined, the temporary results of the query are sent right to the next query rather than stored in a temporary table.",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True. Pipelined queries pass intermediate results directly, avoiding the overhead of storing temporary results.",
+    category: "Query Optimization",
+    difficulty: "medium"
+  },
+  {
+    id: 39,
+    question: "If your query includes a selection that has Select … where TablesKey = SomeValue, this would be a good query to do first as it is the most restrictive selection possible without returning an empty table.",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True. Performing the most restrictive selection first reduces the dataset early, improving query efficiency.",
+    category: "Query Optimization",
+    difficulty: "easy"
+  },
+  {
+    id: 59,
+    question: "Most DBMS do NOT test if a schedule is serializable, rather they use techniques that will never allow non-serializable schedules to occur.",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True. DBMS use locking and timestamping techniques to enforce serializability rather than testing schedules directly.",
+    category: "Concurrency",
+    difficulty: "easy"
+  },
+  {
+    id: 60,
+    question: "Which of the following granularities of locking will be the most restrictive to other transactions that are waiting for a locked item?",
+    options: ["Database Level", "Table Level", "Row Level", "Field Level"],
+    correctAnswer: 0,
+    explanation: "Database-level locking is the most restrictive, as it locks the entire database and blocks all other transactions.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 61,
+    question: "In 2-phase locking a transaction must:",
+    options: [
+      "Release all it’s locks at the same time",
+      "NOT obtain any new locks once it has started releasing locks",
+      "Only obtain locks on items not used by any other transactions",
+      "Ensure that deadlock will never occur"
+    ],
+    correctAnswer: 1,
+    explanation: "In 2-phase locking, a transaction cannot obtain new locks once it starts releasing locks. This ensures serializability.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 62,
+    question: "If you use timestamping to ensure serializability, you will never have to perform rollbacks",
+    options: ["True", "False"],
+    correctAnswer: 1,
+    explanation: "False. Timestamping may still require rollbacks if transactions violate serializability constraints.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 63,
+    question: "The optimistic method works best in a database that has",
+    options: [
+      "Lots of inserts, updates and deletes but very few selects",
+      "Lots of selects and very few updates, inserts and deletes",
+      "Lots of rollbacks",
+      "Lots of concurrent writing to the database"
+    ],
+    correctAnswer: 1,
+    explanation: "The optimistic method works best when there are many read operations (selects) and very few write operations.",
+    category: "Concurrency",
+    difficulty: "medium"
   }
 ];
