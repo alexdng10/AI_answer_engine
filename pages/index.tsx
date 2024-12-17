@@ -136,18 +136,18 @@ export default function Home() {
       <main className="flex min-h-screen flex-col bg-gradient-to-b from-gray-900 to-black">
         {/* Header */}
         <header className="fixed top-0 w-full bg-black/50 backdrop-blur-md z-50 border-b border-gray-800">
-          <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <FiBook className="text-blue-500 text-2xl" />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-                CS3319 Quiz Mode
-              </h1>
-              <div className="text-gray-400">
-                Good luck with your finals! - Alex Dang
-              </div>
-            </div>
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <FiBook className="text-blue-500 text-2xl" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+              CS3319 Quiz Mode
+            </h1>
           </div>
-        </header>
+          <div className="text-gray-400">
+            Good luck with your finals! - Alex Dang
+          </div>
+        </div>
+      </header>
 
         <div className="flex-1 pt-24">
           <Quiz questions={cs3319Questions} onExit={() => setIsQuizMode(false)} />
@@ -160,30 +160,27 @@ export default function Home() {
     <main className="flex min-h-screen flex-col bg-gradient-to-b from-gray-900 to-black">
       {/* Header */}
       <header className="fixed top-0 w-full bg-black/50 backdrop-blur-md z-50 border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <FiMessageSquare className="text-blue-500 text-2xl" />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-              InsightAI
-            </h1>
-            <div className="text-gray-400">
-              Good luck with your finals! - Alex Dang
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsQuizMode(true)}
-              className="px-4 py-2 bg-purple-600/20 text-purple-200 border border-purple-500/30 rounded-lg hover:bg-purple-600/30 transition-colors flex items-center space-x-2"
-            >
-              <FiBook />
-              <span>CS3319 Quiz</span>
-            </button>
-            <div className="text-sm text-gray-400">
-              Intelligent Research Assistant
-            </div>
+      <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <FiMessageSquare className="text-blue-500 text-2xl" />
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+            InsightAI
+          </h1>
+        </div>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setIsQuizMode(true)}
+            className="px-4 py-2 bg-purple-600/20 text-purple-200 border border-purple-500/30 rounded-lg hover:bg-purple-600/30 transition-colors flex items-center space-x-2"
+          >
+            <FiBook />
+            <span>CS3319 Quiz</span>
+          </button>
+          <div className="text-gray-400">
+            Good luck with your finals! - Alex Dang
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* Messages */}
       <div className="flex-1 max-w-5xl w-full mx-auto px-4 pt-24 pb-32">

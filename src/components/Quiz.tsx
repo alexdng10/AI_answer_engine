@@ -121,32 +121,33 @@ export default function Quiz({ questions, onExit }: QuizProps) {
     <div className="w-full max-w-4xl mx-auto p-6 space-y-8">
       {/* Quiz Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-800/30 p-4 rounded-lg border border-gray-700">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setQuizMode(quizMode === 'practice' ? 'exam' : 'practice')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              quizMode === 'practice'
-                ? 'bg-green-600/20 text-green-200 border border-green-500/30'
-                : 'bg-purple-600/20 text-purple-200 border border-purple-500/30'
-            }`}
-          >
-            <FiBook />
-            <span>{quizMode === 'practice' ? 'Practice Mode' : 'Exam Mode'}</span>
-          </button>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-700/50 text-gray-200 rounded-lg hover:bg-gray-700"
-          >
-            <FiFilter />
-            <span>Filters</span>
-          </button>
-          <button
-            onClick={resetQuiz}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-700/50 text-gray-200 rounded-lg hover:bg-gray-700"
-          >
-            <FiRefreshCw />
-            <span>Reset</span>
-          </button>
+  {/* Change this div to handle wrapping better */}
+      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        <button
+          onClick={() => setQuizMode(quizMode === 'practice' ? 'exam' : 'practice')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+            quizMode === 'practice'
+              ? 'bg-green-600/20 text-green-200 border border-green-500/30'
+              : 'bg-purple-600/20 text-purple-200 border border-purple-500/30'
+          }`}
+        >
+          <FiBook />
+          <span>{quizMode === 'practice' ? 'Practice Mode' : 'Exam Mode'}</span>
+        </button>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-700/50 text-gray-200 rounded-lg hover:bg-gray-700"
+        >
+          <FiFilter />
+          <span>Filters</span>
+        </button>
+        <button
+          onClick={resetQuiz}
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-700/50 text-gray-200 rounded-lg hover:bg-gray-700"
+        >
+          <FiRefreshCw />
+          <span>Reset</span>
+        </button>
         </div>
         <div className="flex items-center space-x-4">
           <div className="text-gray-400">
