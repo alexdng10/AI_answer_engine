@@ -150,16 +150,7 @@ export const cs3319Questions: QuizQuestion[] = [
     difficulty: "easy",
     year: "Summer 2000"
   },
-  {
-    id: 12,
-    question: "There is a view/table in the system catalog in DB2 that contains the names of all the views and tables in the database including it's own name",
-    options: ["True", "False"],
-    correctAnswer: 0,
-    explanation: "The SYSTABLES view in DB2's system catalog contains information about all tables and views, including itself.",
-    category: "DB2",
-    difficulty: "easy",
-    year: "Summer 2000"
-  },
+
   {
     id: 13,
     question: "A database management system that uses locking does not need to worry about handling deadlock situations BUT it must handle livelock situations.",
