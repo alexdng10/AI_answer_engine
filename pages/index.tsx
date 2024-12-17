@@ -27,7 +27,7 @@ export default function Home() {
     },
   ]);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
-  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [isQuizMode, setIsQuizMode] = useState(true);
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
