@@ -256,7 +256,7 @@ export const cs3319Questions: QuizQuestion[] = [
       "9 relations",
       "none of the above"
     ],
-    correctAnswer: 2,
+    correctAnswer: 1,
     explanation: "When decomposing into 2NF, we need to ensure no partial dependencies exist. Given the functional dependencies, we'll need 8 relations to properly separate all partial dependencies.",
     category: "Normalization",
     difficulty: "hard",
