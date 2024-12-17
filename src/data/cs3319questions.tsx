@@ -253,22 +253,7 @@ export const cs3319Questions: QuizQuestion[] = [
     difficulty: "hard",
     year: "Summer 2000"
   },
-  {
-    id: 21,
-    question: "Then if we put the above relation R into third normal form, we will end up with a total of:",
-    options: [
-      "6 relations",
-      "7 relations",
-      "8 relations",
-      "9 relations",
-      "none of the above"
-    ],
-    correctAnswer: 3,
-    explanation: "When moving from 2NF to 3NF, we need to eliminate transitive dependencies. This results in 9 relations due to the additional decomposition needed to handle transitive dependencies in the given functional dependencies.",
-    category: "Normalization",
-    difficulty: "hard",
-    year: "Summer 2000"
-  },
+  
   {
     id: 27,
     question: <>
