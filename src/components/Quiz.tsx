@@ -244,7 +244,11 @@ export default function Quiz({ questions, onExit }: QuizProps) {
           )}
         </div>
         
-        <h2 className="text-xl text-gray-100 mb-6">{currentQuestionData.question}</h2>
+        <div className="text-xl text-gray-100 mb-6">
+          {typeof currentQuestionData.question === 'string' 
+            ? currentQuestionData.question 
+            : currentQuestionData.question}
+        </div>
         
         <div className="space-y-3">
           {currentQuestionData.options.map((option, index) => (
