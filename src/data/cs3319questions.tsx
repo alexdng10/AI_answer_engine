@@ -1,5 +1,6 @@
 import React from 'react';
 import WomanDatabaseTables from '@/components/WomanDatabaseTables';
+import DynamicTable from '@/components/DynamicTable';
 export type QuizQuestion = {
   id: number;
   question: string | JSX.Element;
@@ -509,5 +510,222 @@ export const cs3319Questions: QuizQuestion[] = [
     explanation: "The optimistic method works best when there are many read operations (selects) and very few write operations.",
     category: "Concurrency",
     difficulty: "medium"
-  }
+  },
+  {
+    id: 40,
+    question: (
+      <>
+        <p>Assuming you run the following SQL query on the tables below:</p>
+        <pre
+          className="whitespace-pre-wrap break-words overflow-x-auto p-2 bg-gray-800 rounded-md text-gray-200"
+          style={{ wordWrap: 'break-word' }}
+        >
+          SELECT a FROM aa WHERE b IN (SELECT f FROM bb WHERE g = 20);
+        </pre>
+        <p>How many rows will be returned?</p>
+        <h4>Table aa:</h4>
+        <DynamicTable
+          headers={['a', 'b', 'c']}
+          rows={[
+            [33, 2, 3],
+            [44, 2, 5],
+            [33, 1, 3],
+            [44, 2, 5],
+            [33, 4, 1],
+          ]}
+        />
+        <h4>Table bb:</h4>
+        <DynamicTable
+          headers={['e', 'f', 'g', 'h']}
+          rows={[
+            [5, 1, 10, 44],
+            [5, 2, 20, 55],
+            [6, 1, 30, 66],
+          ]}
+        />
+      </>
+    ),
+    options: ['0', '1', '2', '3', '4', '5', 'More than 5'],
+    correctAnswer: 3,
+    explanation:
+      'The subquery selects f values from table bb where g = 20. It returns f = 2. In table aa, rows with b = 2 are matched, giving us rows with a = 33, 44, 44.',
+    category: 'SQL Queries',
+    difficulty: 'medium',
+  },
+  
+  {
+    id: 41,
+    question: (
+      <>
+        <p>Assuming you run the following SQL query on the tables below:</p>
+        <pre
+          className="whitespace-pre-wrap break-words overflow-x-auto p-2 bg-gray-800 rounded-md text-gray-200"
+          style={{ wordWrap: 'break-word' }}
+        >
+          SELECT a FROM aa WHERE b NOT IN (SELECT f FROM bb WHERE g &lt; 20);
+        </pre>
+        <p>How many rows will be returned?</p>
+        <h4>Table aa:</h4>
+        <DynamicTable
+          headers={['a', 'b', 'c']}
+          rows={[
+            [33, 2, 3],
+            [44, 2, 5],
+            [33, 1, 3],
+            [44, 2, 5],
+            [33, 4, 1],
+          ]}
+        />
+        <h4>Table bb:</h4>
+        <DynamicTable
+          headers={['e', 'f', 'g', 'h']}
+          rows={[
+            [5, 1, 10, 44],
+            [5, 2, 20, 55],
+            [6, 3, 15, 66],
+          ]}
+        />
+      </>
+    ),
+    options: ['0', '1', '2', '3', '4', '5', 'More than 5'],
+    correctAnswer: 2,
+    explanation:
+      'The subquery selects f values from table bb where g < 20. It returns f = 1, 3. In table aa, rows with b NOT IN (1, 3) are selected, giving us rows with a = 33, 33.',
+    category: 'SQL Queries',
+    difficulty: 'medium',
+  },
+  
+  {
+    id: 42,
+    question: (
+      <>
+        <p>Assuming you run the following SQL query on the tables below:</p>
+        <pre
+          className="whitespace-pre-wrap break-words overflow-x-auto p-2 bg-gray-800 rounded-md text-gray-200"
+          style={{ wordWrap: 'break-word' }}
+        >
+          SELECT DISTINCT a FROM aa WHERE b IN (SELECT f FROM bb WHERE g BETWEEN 10 AND 30);
+        </pre>
+        <p>How many rows will be returned?</p>
+        <h4>Table aa:</h4>
+        <DynamicTable
+          headers={['a', 'b', 'c']}
+          rows={[
+            [33, 1, 3],
+            [44, 2, 5],
+            [33, 4, 1],
+            [22, 2, 2],
+            [11, 3, 3],
+          ]}
+        />
+        <h4>Table bb:</h4>
+        <DynamicTable
+          headers={['e', 'f', 'g', 'h']}
+          rows={[
+            [5, 1, 10, 44],
+            [5, 2, 20, 55],
+            [6, 3, 30, 66],
+          ]}
+        />
+      </>
+    ),
+    options: ['0', '1', '2', '3', '4', '5', 'More than 5'],
+    correctAnswer: 3,
+    explanation:
+      'The subquery selects f values where g BETWEEN 10 AND 30, returning f = 1, 2, 3. Rows in table aa with b IN (1, 2, 3) are selected: a = 33, 44, 11.',
+    category: 'SQL Queries',
+    difficulty: 'medium',
+  },
+  
+  {
+    id: 43,
+    question: (
+      <>
+        <p>Assuming you run the following SQL query on the tables below:</p>
+        <pre
+          className="whitespace-pre-wrap break-words overflow-x-auto p-2 bg-gray-800 rounded-md text-gray-200"
+          style={{ wordWrap: 'break-word' }}
+        >
+          SELECT COUNT(*) FROM aa WHERE b IN (SELECT f FROM bb WHERE e = 6);
+        </pre>
+        <p>How many rows will be returned?</p>
+        <h4>Table aa:</h4>
+        <DynamicTable
+          headers={['a', 'b', 'c']}
+          rows={[
+            [33, 1, 3],
+            [44, 2, 5],
+            [33, 4, 1],
+            [22, 2, 2],
+            [11, 3, 3],
+          ]}
+        />
+        <h4>Table bb:</h4>
+        <DynamicTable
+          headers={['e', 'f', 'g', 'h']}
+          rows={[
+            [6, 1, 10, 44],
+            [6, 4, 20, 55],
+            [5, 2, 30, 66],
+          ]}
+        />
+      </>
+    ),
+    options: ['0', '1', '2', '3', '4', '5', 'More than 5'],
+    correctAnswer: 2,
+    explanation:
+      'The subquery selects f values from table bb where e = 6. It returns f = 1, 4. Rows in table aa with b = 1, 4 are selected: a = 33, 33.',
+    category: 'SQL Queries',
+    difficulty: 'medium',
+  },
+  
+  {
+    id: 44,
+    question: (
+      <>
+        <p>Assuming you run the following SQL query on the tables below:</p>
+        <pre
+          className="whitespace-pre-wrap break-words overflow-x-auto p-2 bg-gray-800 rounded-md text-gray-200"
+          style={{ wordWrap: 'break-word' }}
+        >
+          SELECT a FROM aa WHERE c IN (SELECT h FROM bb WHERE f = 2);
+        </pre>
+        <p>How many rows will be returned?</p>
+        <h4>Table aa:</h4>
+        <DynamicTable
+          headers={['a', 'b', 'c']}
+          rows={[
+            [33, 2, 3],
+            [44, 2, 5],
+            [33, 1, 3],
+            [44, 2, 44],
+            [33, 4, 1],
+          ]}
+        />
+        <h4>Table bb:</h4>
+        <DynamicTable
+          headers={['e', 'f', 'g', 'h']}
+          rows={[
+            [5, 2, 20, 5],
+            [6, 2, 30, 44],
+            [6, 1, 10, 3],
+          ]}
+        />
+      </>
+    ),
+    options: ['0', '1', '2', '3', '4', '5', 'More than 5'],
+    correctAnswer: 2,
+    explanation:
+      'The subquery selects h values from table bb where f = 2. It returns h = 5, 44. Rows in table aa with c IN (5, 44) are selected: a = 44, 44.',
+    category: 'SQL Queries',
+    difficulty: 'medium',
+  },
+  
+
+  
+  
+    
+  
+  
+  
 ];
