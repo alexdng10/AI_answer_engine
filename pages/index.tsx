@@ -14,16 +14,11 @@ type Message = {
   timestamp?: number;
 };
 
-type UrlContext = {
-  url: string;
-  addedAt: number;
-  failed?: boolean;
-};
-
 export default function Home() {
   const [message, setMessage] = useState("");
-  const [urls, setUrls] = useState<string[]>([]);
-  const [urlContext, setUrlContext] = useState<UrlContext[]>([]);
+  const [response, setResponse] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: "assistant", 
@@ -31,7 +26,6 @@ export default function Home() {
       timestamp: Date.now()
     },
   ]);
-  const [isLoading, setIsLoading] = useState(false);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   const [isQuizMode, setIsQuizMode] = useState(false);
 
@@ -55,7 +49,7 @@ export default function Home() {
   }, [retryAfter]);
 
   const handleSend = async () => {
-    if (!message.trim() && urls.length === 0) return;
+    if (!message.trim()) return;
     if (retryAfter) return;
 
     setIsLoading(true);
@@ -80,7 +74,6 @@ export default function Home() {
         },
         body: JSON.stringify({ 
           message: currentMessage,
-          urls,
           previousMessages: messages
         }),
       });
@@ -95,31 +88,6 @@ export default function Home() {
       
       if (!response.ok) {
         throw new Error(data.error || "Failed to get response");
-      }
-
-      // Update URL context with any failed URLs
-      if (urls.length > 0) {
-        setUrlContext(prev => [
-          ...prev,
-          ...urls.map(url => ({
-            url,
-            addedAt: Date.now(),
-            failed: data.failedUrls?.includes(url)
-          }))
-        ]);
-
-        // If there were failed URLs, add a warning message
-        if (data.failedUrls?.length > 0) {
-          setMessages(prev => [
-            ...prev,
-            {
-              role: "assistant",
-              content: `⚠️ Failed to access: ${data.failedUrls.join(", ")}`,
-              error: true,
-              timestamp: Date.now()
-            }
-          ]);
-        }
       }
 
       // If the response was chunked, add a processing message
@@ -160,7 +128,6 @@ export default function Home() {
       ]);
     } finally {
       setIsLoading(false);
-      setUrls([]);
     }
   };
 
@@ -310,7 +277,7 @@ export default function Home() {
             </div>
             <button
               onClick={handleSend}
-              disabled={isLoading || retryAfter !== null || (!message.trim() && urls.length === 0)}
+              disabled={isLoading || retryAfter !== null || (!message.trim())}
               className="flex items-center justify-center h-12 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? (

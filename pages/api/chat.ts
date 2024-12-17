@@ -1,16 +1,20 @@
-// TODO: Implement the chat API with Groq and web scraping with Cheerio and Puppeteer
-// Refer to the Next.js Docs on how to read the Request body: https://nextjs.org/docs/app/building-your-application/routing/route-handlers
-// Refer to the Groq SDK here on how to use an LLM: https://www.npmjs.com/package/groq-sdk
-// Refer to the Cheerio docs here on how to parse HTML: https://cheerio.js.org/docs/basics/loading
-// Refer to Puppeteer docs here: https://pptr.dev/guides/what-is-puppeteer
-
-import { Groq } from "groq-sdk";
-import * as cheerio from "cheerio";
-import puppeteer from "puppeteer";
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
+import { Groq } from 'groq-sdk'
+import * as cheerio from 'cheerio'
+import puppeteer from 'puppeteer';
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY!,
-});
+  apiKey: process.env.GROQ_API_KEY,
+})
+
+// Create a new ratelimiter that allows 10 requests per 10 seconds
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '10 s'),
+  analytics: true,
+})
 
 // Cache for scraped content to avoid re-scraping the same URLs
 const urlCache: { [key: string]: { content: string; timestamp: number } } = {};
@@ -39,8 +43,6 @@ ${status.isRateLimited ? 'Rate Limited: Yes' : ''}
 
 async function scrapeUrl(url: string): Promise<string> {
   try {
-    const parsedUrl = new URL(url);
-    
     // Check cache first
     const cached = urlCache[url];
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -337,24 +339,120 @@ async function scrapeUrl(url: string): Promise<string> {
   }
 }
 
-// Helper function to retry operations
-async function retryWithTimeout<T>(
-  operation: () => Promise<T>,
-  maxRetries: number,
-  delay: number
-): Promise<T> {
-  let lastError: Error | null = null;
-  
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
+interface Message {
+  role: string;
+  content: string;
+}
+
+interface RequestBody {
+  message: string;
+  urls: string[];
+  previousMessages: Message[];
+}
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
   }
-  
-  throw lastError || new Error('Operation failed after retries');
+
+  try {
+    const clientId = req.headers['x-forwarded-for'] || 'unknown'
+    
+    // Check rate limit
+    if (await isRateLimited(clientId as string)) {
+      return res.status(429).json({ 
+        error: 'Too many requests. Please wait a moment before trying again.',
+        content: "I'm receiving too many requests. Please wait a brief moment before sending another message.",
+        failedUrls: []
+      })
+    }
+
+    // Add delay between requests
+    await delay(RATE_LIMIT.delayMs)
+
+    const body = req.body
+    const { message, previousMessages = [] } = body
+    
+    // Prepare base prompt
+    let prompt = message
+
+    // Split into smaller chunks
+    const chunks = chunkContent(prompt)
+    const responses: string[] = []
+
+    // Process each chunk with delay and error handling
+    for (const chunk of chunks) {
+      try {
+        await delay(1000) // Delay between chunks
+        
+        const completion = await groq.chat.completions.create({
+          messages: [
+            ...previousMessages.slice(-3).map(m => ({ // Keep only last 3 messages for context
+              role: m.role,
+              content: m.content.slice(0, 1000), // Limit message size
+            })),
+            { 
+              role: 'user', 
+              content: chunk + (chunks.length > 1 ? '\n\nNote: This is part of a larger content. Please focus on extracting and analyzing the information from this part.' : '')
+            }
+          ],
+          model: 'mixtral-8x7b-32768',
+          temperature: 0.5,
+          max_tokens: 2000,
+          top_p: 1,
+          stop: null,
+          stream: false,
+        })
+
+        responses.push(completion.choices[0]?.message?.content || '')
+      } catch (error) {
+        if (error.message?.includes('413')) {
+          console.error('Chunk too large, skipping:', error)
+          continue
+        }
+        throw error
+      }
+    }
+
+    // Merge responses if we have any
+    const finalResponse = responses.length > 0 
+      ? mergeResponses(responses)
+      : "I apologize, but I couldn't process the content due to size limitations. Please try with a smaller amount of content."
+
+    return res.status(200).json({
+      content: finalResponse,
+      chunked: chunks.length > 1
+    })
+
+  } catch (error) {
+    console.error('Error in chat route:', error)
+    const isPayloadError = error.message?.includes('413') || error.message?.includes('too large')
+    
+    if (isPayloadError) {
+      return res.status(413).json({ 
+        error: 'Content too large to process. Please try with less content.',
+        content: "I apologize, but that's a bit too much for me to process at once. Could you try with less content?",
+        failedUrls: []
+      })
+    }
+    
+    if (error.message?.includes('rate_limit_exceeded')) {
+      return res.status(429).json({ 
+        error: 'Please wait a moment before sending another message.',
+        content: "I need a brief moment to process your request. Please try again shortly.",
+        failedUrls: []
+      })
+    }
+
+    return res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Failed to process request',
+      content: "Sorry, I encountered an error processing your request.",
+      failedUrls: []
+    })
+  }
 }
 
 // Helper function to truncate text while preserving important information
@@ -462,7 +560,7 @@ const RATE_LIMIT = {
 // Simple in-memory store for rate limiting
 const requestStore = new Map<string, { count: number; timestamp: number }>();
 
-function isRateLimited(clientId: string): boolean {
+async function isRateLimited(clientId: string): Promise<boolean> {
   const now = Date.now();
   const clientRequests = requestStore.get(clientId);
 
@@ -489,170 +587,3 @@ function isRateLimited(clientId: string): boolean {
 
 // Helper function to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-export async function POST(req: Request) {
-  try {
-    const clientId = req.headers.get('x-forwarded-for') || 'unknown';
-    
-    // Check rate limit
-    if (isRateLimited(clientId)) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Too many requests. Please wait a moment before trying again.',
-          content: "I'm receiving too many requests. Please wait a brief moment before sending another message.",
-          failedUrls: []
-        }),
-        { 
-          status: 429, 
-          headers: { 
-            'Content-Type': 'application/json',
-            'Retry-After': '60'
-          } 
-        }
-      );
-    }
-
-    // Add delay between requests
-    await delay(RATE_LIMIT.delayMs);
-
-    const body = await req.json();
-    const { message, urls = [], previousMessages = [] } = body;
-    
-    // Extract URLs from the message if not provided
-    const messageUrls = (message?.match(/(https?:\/\/[^\s]+)/g) || []) as string[];
-    const allUrls = Array.from(new Set([...urls, ...messageUrls]));
-    
-    // Scrape content from URLs with a limit
-    const scrapedContents: string[] = [];
-    const failedUrls: string[] = [];
-    
-    for (const url of allUrls.slice(0, 5)) { // Limit to 5 URLs at a time
-      try {
-        const content = await scrapeUrl(url);
-        // Truncate content if too long
-        scrapedContents.push(content.slice(0, 10000)); // Limit each URL content
-        await delay(500); // Delay between scrapes
-      } catch (error) {
-        console.error(`Error scraping ${url}:`, error);
-        failedUrls.push(url);
-      }
-    }
-
-    if (allUrls.length > 5) {
-      failedUrls.push(...allUrls.slice(5));
-    }
-
-    // Prepare base prompt with limited content
-    let prompt = message;
-    if (scrapedContents.length > 0) {
-      const sources = scrapedContents
-        .map(content => summarizeContent(content))
-        .join('\n\n')
-        .slice(0, 15000); // Limit total source content
-      prompt = `Sources:\n\n${sources}\n\n${message}`;
-    }
-
-    // Split into smaller chunks
-    const chunks = chunkContent(prompt);
-    const responses: string[] = [];
-
-    // Process each chunk with delay and error handling
-    for (const [index, chunk] of chunks.entries()) {
-      try {
-        await delay(1000); // Delay between chunks
-        
-        const completion = await groq.chat.completions.create({
-          messages: [
-            ...previousMessages.slice(-3).map(m => ({ // Keep only last 3 messages for context
-              role: m.role,
-              content: m.content.slice(0, 1000), // Limit message size
-            })),
-            { 
-              role: 'user', 
-              content: chunk + (chunks.length > 1 ? '\n\nNote: This is part of a larger content. Please focus on extracting and analyzing the information from this part.' : '')
-            }
-          ],
-          model: 'mixtral-8x7b-32768',
-          temperature: 0.5,
-          max_tokens: 2000, // Reduced token limit
-          top_p: 1,
-          stop: null,
-          stream: false,
-        });
-
-        responses.push(completion.choices[0]?.message?.content || '');
-      } catch (error) {
-        if (error.message?.includes('413')) {
-          console.error('Chunk too large, skipping:', error);
-          continue; // Skip this chunk and continue with others
-        }
-        throw error; // Re-throw other errors
-      }
-    }
-
-    // Merge responses if we have any
-    const finalResponse = responses.length > 0 
-      ? mergeResponses(responses)
-      : "I apologize, but I couldn't process the content due to size limitations. Please try with a smaller amount of content or fewer URLs.";
-
-    return new Response(
-      JSON.stringify({
-        content: finalResponse,
-        sources: allUrls.filter(url => !failedUrls.includes(url)),
-        failedUrls,
-        chunked: chunks.length > 1
-      }),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-
-  } catch (error) {
-    console.error('Error in chat route:', error);
-    const isPayloadError = error.message?.includes('413') || error.message?.includes('too large');
-    
-    if (isPayloadError) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Content too large to process. Please try with less content or fewer URLs.',
-          content: "I apologize, but that's a bit too much for me to process at once. Could you try with less content or fewer URLs?",
-          failedUrls: []
-        }),
-        { 
-          status: 413,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-    
-    if (error.message?.includes('rate_limit_exceeded')) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Please wait a moment before sending another message.',
-          content: "I need a brief moment to process your request. Please try again shortly.",
-          failedUrls: []
-        }),
-        { 
-          status: 429, 
-          headers: { 
-            'Content-Type': 'application/json',
-            'Retry-After': '60'
-          } 
-        }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Failed to process request',
-        content: "Sorry, I encountered an error processing your request.",
-        failedUrls: []
-      }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-}

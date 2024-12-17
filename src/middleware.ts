@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
     // Only rate limit the chat API endpoint
     if (request.nextUrl.pathname === "/api/chat") {
       const ip = request.ip ?? "127.0.0.1";
-      const { success, pending, limit, reset, remaining } = await ratelimit.limit(
+      const { success, limit, reset, remaining } = await ratelimit.limit(
         `ratelimit_${ip}`
       );
 
@@ -40,7 +40,14 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+  
+    // Add CORS headers
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+    return response;
   } catch (error) {
     console.error("Rate limiting error:", error);
     return NextResponse.next();
