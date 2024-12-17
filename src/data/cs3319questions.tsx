@@ -564,7 +564,7 @@ export const cs3319Questions: QuizQuestion[] = [
       </>
     ),
     options: ['0', '1', '2', '3', '4', '5', 'More than 5'],
-    correctAnswer: 2,
+    correctAnswer: 4,
     explanation:
       'The subquery selects f values from table bb where g < 20. It returns f = 1, 3. In table aa, rows with b NOT IN (1, 3) are selected, giving us rows with a = 33, 33.',
     category: 'SQL Queries',
