@@ -696,6 +696,632 @@ export const cs3319Questions: QuizQuestion[] = [
     category: 'SQL Queries',
     difficulty: 'medium',
   },
+  {
+    id: 64,
+    question: "PHP server scripts must be surrounded by which delimiters?",
+    options: [
+      "<script>...</script>",
+      "<&>...</&>",
+      "<?php...?>",
+      "<?php>...</?>",
+    ],
+    correctAnswer: 2,
+    explanation: "PHP scripts must be enclosed within <?php...?> delimiters that mark where PHP code begins and ends.",
+    category: "Web Development",
+    difficulty: "easy"
+  },
+  {
+    id: 65,
+    question: "When optimizing a database query, which of the following statements is true?",
+    options: [
+      "Always choose the fastest possible solution",
+      "Balance between speed, resource usage, and practical considerations",
+      "Always prioritize memory usage over speed",
+      "Only optimize queries that take longer than 1 second"
+    ],
+    correctAnswer: 1,
+    explanation: "Query optimization involves balancing multiple factors. The fastest solution may not always be the most practical due to resource constraints and other considerations.",
+    category: "Query Optimization",
+    difficulty: "medium"
+  },
+  {
+    id: 66,
+    question: "Role-based security in databases refers to:",
+    options: [
+      "Statistical analysis of database queries",
+      "Managing access control based on user roles",
+      "Encryption of sensitive data",
+      "Masking private information in query results"
+    ],
+    correctAnswer: 1,
+    explanation: "Role-based security is about managing database access control based on user roles, not about statistical analysis or data masking.",
+    category: "Security",
+    difficulty: "medium"
+  },
+  {
+    id: 67,
+    question: "In Time Stamping concurrency control, which timestamps must be saved when Transaction T tries to access data item Quantity?",
+    options: [
+      "Only Start Time of Transaction T",
+      "Start Time of T and Read Time of Quantity",
+      "Start Time of T, Read Time of Quantity, and Write Time of Quantity",
+      "Start Time of T, Read Time of Quantity, Write Time of Quantity, and End Time of T"
+    ],
+    correctAnswer: 2,
+    explanation: "Time stamping requires saving the Start Time of Transaction T, Read Time of Quantity, and Write Time of Quantity to maintain concurrency control.",
+    category: "Concurrency",
+    difficulty: "hard"
+  },
+  {
+    id: 68,
+    question: "With two transactions T1 and T2, how many possible serial schedules exist?",
+    options: [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    correctAnswer: 1,
+    explanation: "With two transactions, there are exactly 2 possible serial schedules: either T1 followed by T2, or T2 followed by T1.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 69,
+    question: "Why is a database normally stored on a Hard Disk rather than in Main Memory? (Select all that apply)",
+    options: [
+      "Hard disk is less volatile, cheaper, and can store more data",
+      "Hard disk is faster access than main memory",
+      "Hard disk takes up less physical space than main memory",
+      "Hard disk has better data compression"
+    ],
+    correctAnswer: 0,
+    explanation: "Databases are stored on hard disks because they are less volatile (data persists after power off), cheaper per unit of storage, and can store more data compared to main memory.",
+    category: "Database Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 70,
+    question: "Which of the following is most restrictive in terms of database locking?",
+    options: [
+      "Database Level",
+      "Table Level",
+      "Row Level",
+      "Field Level"
+    ],
+    correctAnswer: 0,
+    explanation: "Database-level locking is the most restrictive as it locks the entire database, preventing other transactions from accessing any part of it.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 71,
+    question: "In 2-phase locking, which rule must a transaction follow?",
+    options: [
+      "Release all locks at the same time",
+      "Cannot obtain new locks once it has started releasing locks",
+      "Only obtain locks on items not used by other transactions",
+      "Must ensure deadlock never occurs"
+    ],
+    correctAnswer: 1,
+    explanation: "In 2-phase locking, once a transaction starts releasing locks (shrinking phase), it cannot obtain any new locks. This is a fundamental rule that ensures serializability.",
+    category: "Concurrency",
+    difficulty: "hard"
+  },
+  {
+    id: 72,
+    question: "The optimistic concurrency control method works best in a database that has:",
+    options: [
+      "Lots of inserts, updates and deletes but very few selects",
+      "Lots of selects and very few updates, inserts and deletes",
+      "Lots of rollbacks",
+      "Lots of concurrent writing to the database"
+    ],
+    correctAnswer: 1,
+    explanation: "Optimistic concurrency control performs best when there are many read operations (selects) and few write operations, as conflicts are less likely to occur.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 73,
+    question: "True or False: Using the System tables in MySQL, it is possible to see which tables in ALL the databases (not just from one database) on your system have more than 1000 rows.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 0,
+    explanation: "This is true - MySQL system tables contain metadata about all databases in the system, including information about table sizes and row counts.",
+    category: "MySQL",
+    difficulty: "medium"
+  },
+  {
+    id: 74,
+    question: "True or False: One of the goals of good database design is to create spurious tuples in your tables.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - creating spurious tuples is not a goal of good database design. Spurious tuples are unwanted results that should be avoided.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 75,
+    question: "A relational database can be viewed itself as an ER diagram (the meta data). When modelling the 1 to many relationship between TABLE and COLUMN, a COLUMN would be a(n):",
+    options: [
+      "RELATIONSHIP",
+      "WEAK ENTITY",
+      "ATTRIBUTE",
+      "ENTITY"
+    ],
+    correctAnswer: 1,
+    explanation: "A COLUMN is a WEAK ENTITY because it depends on a TABLE, much like a weak entity depends on a strong entity in an ER diagram.",
+    category: "Database Design",
+    difficulty: "hard"
+  },
+  {
+    id: 76,
+    question: "Which of the following are used to manage user access to a database?",
+    options: [
+      "GRANT statement only",
+      "REVOKE statement only",
+      "VIEWS only",
+      "All of the above",
+      "GRANT and REVOKE statements only"
+    ],
+    correctAnswer: 3,
+    explanation: "All of the above (GRANT statement, REVOKE statement, and VIEWS) are used to manage user access to a database.",
+    category: "Security",
+    difficulty: "medium"
+  },
+  {
+    id: 77,
+    question: "True or False: When creating a webpage that you want to run some .php code, both .html and .php extensions will work, as long as you remember to put your php code between the <?php and ?> tags.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - to run PHP code, the file must have the .php extension. The .html extension will not process PHP code even if it's properly tagged.",
+    category: "Web Development",
+    difficulty: "easy"
+  },
+  {
+    id: 78,
+    question: "True or False: If pcharles owns the table PRINCES and performed this command: GRANT SELECT ON PRINCES TO pwilliam WITH GRANT OPTION; pwilliam is now allowed to give any users he wants the ability to select from the PRINCES table.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 0,
+    explanation: "True - WITH GRANT OPTION allows the grantee (pwilliam) to grant the same privileges to other users.",
+    category: "Security",
+    difficulty: "medium"
+  },
+  {
+    id: 79,
+    question: "True or False: Assume we have two transactions T1 and T2. We could have a schedule S1 which performs all of T1 then all of T2. Or we could have another schedule S2, which performs all of T2 then all of T1. If S1 results in different values in the database than S2 would have given, S1 and/or S2 definitely did not represent serializable schedules.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - Different final values between serial schedules don't necessarily mean they aren't serializable. Serial schedules can produce different but valid results.",
+    category: "Concurrency",
+    difficulty: "hard"
+  },
+  {
+    id: 80,
+    question: "Which of the following is most commonly used to manage disk accessing activities?",
+    options: [
+      "Moving the data from the block to main memory (the block transfer time)",
+      "Rotating the disk to the correct sector (the latency/rotational delay)",
+      "Finding the track (the seek time)",
+      "All activities take the same time"
+    ],
+    correctAnswer: 0,
+    explanation: "Moving data from the block to main memory (block transfer time) is the fastest of these disk accessing activities.",
+    category: "Database Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 81,
+    question: "True or False: Hashing is NOT useful if you want to retrieve records within a range of keys (e.g. all the records between Key 8 to 18) even in the situation where the keys in the range were used in the hashing function as the hashing key",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 0,
+    explanation: "True - Hashing is designed for exact match lookups, not range-based queries, even if the keys in the range were used in the hashing function.",
+    category: "Database Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 82,
+    question: "Which of these are good reasons for using a heap file organization? (select the BEST answer)",
+    options: [
+      "The data will have to be sorted often",
+      "The data will often be bulk loaded into the relation/table and the file is very small",
+      "Lots of searches will be required on the file",
+      "We need fast retrieval of specific records"
+    ],
+    correctAnswer: 1,
+    explanation: "Heap file organization is best when data will be bulk loaded and the file is small. It's not optimal for frequent sorting or searching.",
+    category: "Database Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 83,
+    question: "Which tables are NOT in the mysql information_schema database?",
+    options: [
+      "VIEWS",
+      "COLUMNS",
+      "GRANTS",
+      "TABLES"
+    ],
+    correctAnswer: 2,
+    explanation: "GRANTS is not a table in the mysql information_schema database. VIEWS, COLUMNS, and TABLES are valid tables in the schema.",
+    category: "MySQL",
+    difficulty: "medium"
+  },
+  {
+    id: 84,
+    question: "Which of the following are NOT tables in the mysql information_schema database?",
+    options: [
+      "VIEWS",
+      "COLUMNS",
+      "GRANTS",
+      "TABLES",
+      "None of the above are tables in the schema"
+    ],
+    correctAnswer: 2,
+    explanation: "GRANTS is not a table in the MySQL information_schema database. The other options (VIEWS, COLUMNS, TABLES) are valid tables.",
+    category: "MySQL",
+    difficulty: "medium"
+  },
+  {
+    id: 85,
+    question: "Which of the following relationships has total participation on the RIGHT side of the relationship (reading from left to right)?",
+    options: [
+      "PAINTER paints PAINTING",
+      "COUNTRY has capital (makes its capital city) CITY",
+      "PET belongs to HUMAN",
+      "SINGER records SONG"
+    ],
+    correctAnswer: 0,
+    explanation: "PAINTER paints PAINTING has total participation on the right side because every PAINTING must have been painted by a PAINTER - a painting cannot exist without a painter.",
+    category: "Entity Relationships",
+    difficulty: "medium"
+  },
+  {
+    id: 86,
+    question: "Which of the following entities on the RIGHT side of the relationship is NOT a weak entity?",
+    options: [
+      "Employee assigned to DEPARTMENT",
+      "EMPLOYEE has DEPENDENT (ie. CHILD)",
+      "COURSE offers SECTION",
+      "BUILDING has ROOM"
+    ],
+    correctAnswer: 0,
+    explanation: "DEPARTMENT is not a weak entity because it exists independently and does not depend on EMPLOYEE, whereas the other options are weak entities dependent on their corresponding strong entities.",
+    category: "Entity Relationships",
+    difficulty: "medium"
+  },
+  {
+    id: 87,
+    question: "Match which type of attribute is hsimpson23 (userid of a student)?",
+    options: [
+      "Multivalued Attribute",
+      "Derived Attribute",
+      "Composite Attribute",
+      "Key Attribute",
+      "Relationship Attribute"
+    ],
+    correctAnswer: 3,
+    explanation: "A userid like hsimpson23 is a Key Attribute as it uniquely identifies the student entity.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 88,
+    question: "True or False: When doing a query that is pipelined, the temporary results of the query are stored in a temporary table rather than sent right to the next query.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - in a pipelined query, temporary results are sent directly to the next query rather than being stored in a temporary table. This improves efficiency by avoiding storage overhead.",
+    category: "Query Optimization",
+    difficulty: "medium"
+  },
+  {
+    id: 89,
+    question: "Match which type of attribute is '89%' (the grade given to a student for a given course)?",
+    options: [
+      "Multivalued Attribute",
+      "Derived Attribute",
+      "Composite Attribute",
+      "Key Attribute",
+      "Relationship Attribute"
+    ],
+    correctAnswer: 4,
+    explanation: "A grade (89%) given to a student for a course is a Relationship Attribute as it describes an attribute of the relationship between student and course entities.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 90,
+    question: "Match which type of attribute is '12' (age of a student based on birthdate)?",
+    options: [
+      "Multivalued Attribute",
+      "Derived Attribute",
+      "Composite Attribute",
+      "Key Attribute",
+      "Relationship Attribute"
+    ],
+    correctAnswer: 1,
+    explanation: "Age is a Derived Attribute because it's calculated from another attribute (birthdate) rather than being stored directly.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 91,
+    question: "Match which type of attribute is 'Mandarin' (languages spoken by a student)?",
+    options: [
+      "Multivalued Attribute",
+      "Derived Attribute",
+      "Composite Attribute",
+      "Key Attribute",
+      "Relationship Attribute"
+    ],
+    correctAnswer: 0,
+    explanation: "Languages spoken is a Multivalued Attribute because a student can speak multiple languages.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 92,
+    question: "Match which type of attribute is 'Homer Jay Simpson' (first, middle, and last name of a student)?",
+    options: [
+      "Multivalued Attribute",
+      "Derived Attribute",
+      "Composite Attribute",
+      "Key Attribute",
+      "Relationship Attribute"
+    ],
+    correctAnswer: 2,
+    explanation: "A full name composed of first, middle, and last names is a Composite Attribute as it can be broken down into smaller constituent parts.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 93,
+    question: "Which of the following relationships has more than one possible interpretation:",
+    options: [
+      "PAINTER paints PAINTING",
+      "SINGER records SONG",
+      "AUNT has NIECE",
+      "PHOTOGRAPHER takes PHOTOGRAPH"
+    ],
+    correctAnswer: 2,
+    explanation: "AUNT has NIECE can have multiple interpretations as the relationship could be many-to-many (an aunt can have many nieces and a person can have many aunts) or one-to-many depending on how it's modeled.",
+    category: "Entity Relationships",
+    difficulty: "hard"
+  },
+  {
+    id: 94,
+    question: "Assume you have a table R where R has columns [A, B, C, D, E, F, G, H, I] and the functional dependencies are: [A,B] → [C], [A] → [D], [B] → [E,F], [F] → [G,H,I]. When you put R into Second Normal Form, you will end up with how many tables?",
+    options: [
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    correctAnswer: 1,
+    explanation: "When decomposing into 2NF following these functional dependencies, you end up with 3 tables after removing all partial dependencies.",
+    category: "Normalization",
+    difficulty: "hard"
+  },
+  {
+    id: 95,
+    question: "Which of the following is NOT one to one relationship?",
+    options: [
+      "COUNTRY has capital CITY",
+      "HUSBAND married to WIFE",
+      "Photographer takes Photograph",
+      "PERSON has PASSPORT"
+    ],
+    correctAnswer: 2,
+    explanation: "Photographer takes Photograph is not one-to-one because a photographer can take many photographs, making it a one-to-many relationship.",
+    category: "Entity Relationships",
+    difficulty: "medium"
+  },
+  {
+    id: 96,
+    question: "Which of the following are good reasons for using a heap file organization?",
+    options: [
+      "The data needs to be frequently accessed in a specific order",
+      "The data needs frequent updates and deletions",
+      "The file (table/relation) is very small and used infrequently",
+      "The data needs to be searched often by multiple keys"
+    ],
+    correctAnswer: 2,
+    explanation: "Heap file organization is best suited for small tables that are used infrequently, as it doesn't provide any specific ordering or indexing benefits.",
+    category: "File Organization",
+    difficulty: "medium"
+  },
+  {
+    id: 97,
+    question: "True or False: A database that stores customer information, but has the server program that processes that data stored at different locations around the world is considered a distributed database.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - a distributed database requires the actual data to be distributed across multiple locations, not just the processing programs.",
+    category: "Distributed Databases",
+    difficulty: "medium"
+  },
+  {
+    id: 98,
+    question: "Which of the following is NOT an advantage of a distributed database?",
+    options: [
+      "Improved reliability and availability",
+      "Better performance due to parallel processing",
+      "Simpler system management and maintenance",
+      "Local autonomy of data"
+    ],
+    correctAnswer: 2,
+    explanation: "System management and maintenance is actually more complex in distributed databases due to the need to coordinate between multiple sites and maintain data consistency across locations.",
+    category: "Distributed Databases",
+    difficulty: "medium"
+  },
+  {
+    id: 99,
+    question: "Match which is NOT a many to many relationship",
+    options: [
+      "Photographer takes Photograph",
+      "Aunt has Niece",
+      "Singer sings Song",
+      "Actor performs in Movie"
+    ],
+    correctAnswer: 0,
+    explanation: "Photographer takes Photograph is not many-to-many because while a photographer can take many photographs, a photograph is usually taken by only one photographer, making it a one-to-many relationship.",
+    category: "Entity Relationships",
+    difficulty: "medium"
+  },
+  {
+    id: 100,
+    question: "True or False: Using the PHP file extension .html will work fine as long as you remember to put your php code between the <?php and ?> tags",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - PHP code must use the .php file extension to be processed by the PHP interpreter. The .html extension will not trigger PHP processing even if the code is properly tagged.",
+    category: "Web Development",
+    difficulty: "easy"
+  },
+  {
+    id: 101,
+    question: `Assume you ran this MySQL code:
+CREATE TABLE AA(a1 int);
+CREATE TABLE BB(b1 int);
+CREATE TABLE CC(c1 int, c2 int);
+INSERT INTO CC VALUES (3,0), (5,0), (2,0);
+
+Then created a trigger that before INSERT on BB:
+- Inserts into AA with a1 = NEW.b1 + NEW.b1
+- Deletes from CC where c1 = NEW.b1 + NEW.b1
+
+After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
+    options: [
+      "0",
+      "1", 
+      "2",
+      "3"
+    ],
+    correctAnswer: 2,
+    explanation: "After the trigger processes the inserts (4,3,1), some rows will be deleted from CC based on the condition, leaving 2 rows in table CC.",
+    category: "Triggers",
+    difficulty: "hard"
+  },
+  {
+    id: 102,
+    question: "Which of the following are used to manage user access to a database?",
+    options: [
+      "GRANT statement only",
+      "REVOKE statement only",
+      "VIEWS only",
+      "All of the above"
+    ],
+    correctAnswer: 3,
+    explanation: "All three mechanisms (GRANT statements, REVOKE statements, and VIEWS) are used to manage database access control.",
+    category: "Security",
+    difficulty: "medium"
+  },
+  {
+    id: 103,
+    question: "If user A owns table X and gives both users B and C permission to select from table X with grant option, and then B and C both give user D permission, and finally A revokes B's privilege to select. Who retains select access?",
+    options: [
+      "Only user A",
+      "Users A and C",
+      "Users A, C, and D",
+      "Users A, B, C, and D"
+    ],
+    correctAnswer: 2,
+    explanation: "Users A (owner), C (direct grant), and D (got permission from both B and C, so C's grant maintains D's access even after B's is revoked) retain access.",
+    category: "Security",
+    difficulty: "hard"
+  },
+  {
+    id: 104,
+    question: "True or False: Role based security refers to the type of database security where users are allowed to run queries that give back statistical information about a database without revealing private information.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - Role-based security is about managing access control based on user roles. What's described here is statistical database security, which is a different concept.",
+    category: "Security",
+    difficulty: "medium"
+  },
+  {
+    id: 105,
+    question: "Composite attributes in an ER diagram will map to their own table in a relational database.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - Composite attributes are attributes that can be divided into smaller sub-parts (like Name into First Name and Last Name), but they don't get their own separate table in the relational mapping.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 106,
+    question: "True or False: Only one relationship can exist between two different entities",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - Multiple relationships can exist between the same two entities. For example, a PROFESSOR can advise a STUDENT and also teach a COURSE that the STUDENT is enrolled in.",
+    category: "Entity Relationships",
+    difficulty: "medium"
+  },
+  {
+    id: 107,
+    question: "End Users will see which part of the 3-Schema Architecture?",
+    options: [
+      "Conceptual Level",
+      "External Level",
+      "Internal Level",
+      "Physical Level"
+    ],
+    correctAnswer: 1,
+    explanation: "End users interact with the External Level, which provides user-specific views of the database presented in a format relevant to their needs.",
+    category: "Database Architecture",
+    difficulty: "medium"
+  },
+  {
+    id: 108,
+    question: "True or False: There is more than one way to put a table with non atomic values into first normal form, thus if you put the table into first normal form one way, and another person put the same table into first normal form another way, you might end up with a different number of tables.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 0,
+    explanation: "True - Converting a table to 1NF can be done in multiple ways when dealing with non-atomic values, which can result in different numbers of tables while still maintaining data integrity.",
+    category: "Normalization",
+    difficulty: "medium"
+  }
+  
+  
+
+
+
   
 
   
