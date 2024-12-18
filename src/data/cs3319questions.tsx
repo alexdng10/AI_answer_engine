@@ -1522,6 +1522,76 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     explanation: "Having both relations sorted on the join attribute allows for a merge join, which reduces the number of disk seeks needed as the relations can be processed sequentially.",
     category: "Query Optimization",
     difficulty: "medium"
+  },
+  {
+    id: 124,
+    question: "Which of the following best describes what happens when parsing a query?",
+    options: [
+      "The query is checked for semantic errors",
+      "The query is translated into machine code",
+      "The query is checked for syntax errors and translated into internal form",
+      "The query is optimized for best performance"
+    ],
+    correctAnswer: 2,
+    explanation: "During parsing, the query is checked for proper syntax and converted into an internal representation (like a query tree) that the DBMS can process.",
+    category: "Query Processing",
+    difficulty: "medium"
+  },
+  {
+    id: 125,
+    question: "For a sequential file organization, which operation would be the most efficient?",
+    options: [
+      "Random access to records",
+      "Inserting records in the middle of the file",
+      "Reading all records in order",
+      "Updating records randomly throughout the file"
+    ],
+    correctAnswer: 2,
+    explanation: "Sequential file organization is most efficient for reading all records in order, as the records are stored one after another on disk.",
+    category: "File Organization",
+    difficulty: "medium"
+  },
+  {
+    id: 126,
+    question: "In statistical database security, which of the following is NOT a valid approach to prevent inference attacks?",
+    options: [
+      "Adding noise to query results",
+      "Restricting access to only aggregate functions",
+      "Blocking queries that return small result sets",
+      "Encrypting all data values"
+    ],
+    correctAnswer: 3,
+    explanation: "Encrypting all data values is not a statistical database security method. Valid approaches include adding noise, restricting to aggregates, and controlling result set sizes.",
+    category: "Security",
+    difficulty: "hard"
+  },
+  {
+    id: 127,
+    question: "What is the primary purpose of the checkpoint mechanism in database recovery?",
+    options: [
+      "To prevent unauthorized access",
+      "To reduce the amount of work needed during recovery",
+      "To improve query performance",
+      "To prevent deadlocks"
+    ],
+    correctAnswer: 1,
+    explanation: "Checkpoints reduce recovery time by limiting how far back the system needs to go when recovering from a failure, as it marks a point where all prior transactions are known to be on disk.",
+    category: "Recovery",
+    difficulty: "medium"
+  },
+  {
+    id: 128,
+    question: "In a mixed fragmentation scheme for distributed databases, what happens first?",
+    options: [
+      "Vertical fragmentation followed by horizontal fragmentation",
+      "Horizontal fragmentation followed by vertical fragmentation",
+      "Both fragmentations happen simultaneously",
+      "The choice depends on the specific implementation"
+    ],
+    correctAnswer: 0,
+    explanation: "In mixed fragmentation, vertical fragmentation is performed first, splitting the relation into sub-relations by columns, followed by horizontal fragmentation of these sub-relations.",
+    category: "Distributed Databases",
+    difficulty: "hard"
   }
   
   
