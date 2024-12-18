@@ -1316,6 +1316,144 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     explanation: "True - Converting a table to 1NF can be done in multiple ways when dealing with non-atomic values, which can result in different numbers of tables while still maintaining data integrity.",
     category: "Normalization",
     difficulty: "medium"
+  },
+  {
+    id: 109,
+    question: "True or False: End users can see what part of the database schema of the original tables their views contain.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 0,
+    explanation: "True - Users can see the schema information of their views through system catalogs, allowing them to understand what columns and tables their views are based on.",
+    category: "Views",
+    difficulty: "medium"
+  },
+  {
+    id: 110,
+    question: "Which of the following is NOT one of the reasons for using views?",
+    options: [
+      "Security",
+      "Data independence",
+      "Improved performance",
+      "Reduced storage space"
+    ],
+    correctAnswer: 3,
+    explanation: "Views don't actually reduce storage space as they are virtual tables that don't store data themselves. They are used for security, data independence, and customizing data presentation.",
+    category: "Views",
+    difficulty: "medium"
+  },
+  {
+    id: 111,
+    question: "Assume the company owner has given a grant select on their table to Harry with the GRANT OPTION and Harry uses this to give Draco a select on this table with the GRANT OPTION. Then Harry's SELECT privilege is revoked by the owner. What happens to Draco's ability to select?",
+    options: [
+      "Draco can still select because Harry gave the privilege before his was revoked",
+      "Draco cannot select because Harry had his privilege revoked",
+      "Draco can only select once more and then loses the privilege",
+      "Only the owner can decide if Draco keeps the privilege"
+    ],
+    correctAnswer: 1,
+    explanation: "When Harry's privileges are revoked, all privileges that Harry granted to others (including Draco) are also revoked in a cascading manner.",
+    category: "Security",
+    difficulty: "hard"
+  },
+  {
+    id: 112,
+    question: "When creating a database in the real world, which of the following is most important?",
+    options: [
+      "Having all tables in BCNF",
+      "Having all tables in 3NF",
+      "Understanding the business rules",
+      "Having good hardware"
+    ],
+    correctAnswer: 2,
+    explanation: "Understanding the business rules is most important when creating a real-world database, as this determines how to properly model and structure the data to meet actual business needs.",
+    category: "Database Design",
+    difficulty: "medium"
+  },
+  {
+    id: 113,
+    question: "Which of the following statements about views is FALSE?",
+    options: [
+      "Views can help implement security",
+      "Views can hide complexity from users",
+      "Views always improve query performance",
+      "Views can provide data independence"
+    ],
+    correctAnswer: 2,
+    explanation: "The statement 'Views always improve query performance' is false. Views are virtual tables that may actually add overhead to query processing, especially for complex views involving multiple joins.",
+    category: "Views",
+    difficulty: "medium"
+  },
+  {
+    id: 114,
+    question: "If your query includes a BETWEEN operation in a WHERE clause, what type of selection would this be considered?",
+    options: [
+      "Range query",
+      "Point query",
+      "Aggregate query",
+      "Join query"
+    ],
+    correctAnswer: 0,
+    explanation: "A BETWEEN operation in a WHERE clause is considered a range query as it selects values within a specified range of values.",
+    category: "Query Types",
+    difficulty: "medium"
+  },
+  {
+    id: 115,
+    question: "When using a B+ tree for indexing, what determines the maximum number of keys in a non-leaf node?",
+    options: [
+      "The order of the tree",
+      "The height of the tree",
+      "The number of leaf nodes",
+      "The size of the database"
+    ],
+    correctAnswer: 0,
+    explanation: "The order of the B+ tree determines the maximum number of keys that can be stored in non-leaf nodes.",
+    category: "Indexing",
+    difficulty: "medium"
+  },
+  {
+    id: 116,
+    question: "What situation would be a good use of secondary indexes in a database?",
+    options: [
+      "When the file is very small",
+      "When you frequently search on non-key attributes",
+      "When you only need to search by primary key",
+      "When storage space is very limited"
+    ],
+    correctAnswer: 1,
+    explanation: "Secondary indexes are most useful when you frequently need to search on attributes that aren't the primary key, as they provide additional access paths to the data.",
+    category: "Indexing",
+    difficulty: "medium"
+  },
+  {
+    id: 117,
+    question: "In magnetic disk storage, which operation typically takes the longest time?",
+    options: [
+      "Moving the read/write head to the correct track (seek time)",
+      "Rotating to the correct sector (rotational delay)",
+      "Reading the data from the disk",
+      "Transferring data to memory"
+    ],
+    correctAnswer: 0,
+    explanation: "Seek time, which involves physical movement of the read/write head to the correct track, typically takes the longest time in disk operations.",
+    category: "Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 118,
+    question: "Which of the following is NOT a common method for handling recovery in the case of deadlock?",
+    options: [
+      "Rolling back the youngest transaction",
+      "Rolling back the transaction that holds the most locks",
+      "Rolling back all deadlocked transactions",
+      "Preventing deadlocks entirely through locking protocols"
+    ],
+    correctAnswer: 1,
+    explanation: "The number of locks held is not typically used as a criterion for selecting which transaction to roll back in deadlock recovery. Common methods include rolling back the youngest transaction or all deadlocked transactions.",
+    category: "Recovery",
+    difficulty: "hard"
   }
   
   
@@ -1325,8 +1463,6 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
   
 
   
-  
-    
   
   
   
