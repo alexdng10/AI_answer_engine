@@ -40,7 +40,7 @@ function MyApp({ Component, pageProps }: AppProps) {
               type="password"
               value={inputPassword}
               onChange={(e) => setInputPassword(e.target.value)}
-              placeholder="alexdang19"
+              placeholder="password"
               style={{ padding: '8px', marginRight: '10px' }}
             />
             <button onClick={handleLogin} style={{ padding: '8px' }}>
