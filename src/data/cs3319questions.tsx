@@ -1399,34 +1399,7 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     category: "Query Types",
     difficulty: "medium"
   },
-  {
-    id: 115,
-    question: "When using a B+ tree for indexing, what determines the maximum number of keys in a non-leaf node?",
-    options: [
-      "The order of the tree",
-      "The height of the tree",
-      "The number of leaf nodes",
-      "The size of the database"
-    ],
-    correctAnswer: 0,
-    explanation: "The order of the B+ tree determines the maximum number of keys that can be stored in non-leaf nodes.",
-    category: "Indexing",
-    difficulty: "medium"
-  },
-  {
-    id: 116,
-    question: "What situation would be a good use of secondary indexes in a database?",
-    options: [
-      "When the file is very small",
-      "When you frequently search on non-key attributes",
-      "When you only need to search by primary key",
-      "When storage space is very limited"
-    ],
-    correctAnswer: 1,
-    explanation: "Secondary indexes are most useful when you frequently need to search on attributes that aren't the primary key, as they provide additional access paths to the data.",
-    category: "Indexing",
-    difficulty: "medium"
-  },
+ 
   {
     id: 117,
     question: "In magnetic disk storage, which operation typically takes the longest time?",
@@ -1455,60 +1428,8 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     category: "Recovery",
     difficulty: "hard"
   },
-  {
-    id: 119,
-    question: "In a B+ tree index, what best describes the difference between a leaf node and a non-leaf node?",
-    options: [
-      "Leaf nodes have more entries than non-leaf nodes",
-      "Leaf nodes contain pointers to data records while non-leaf nodes only contain keys",
-      "Leaf nodes cannot contain duplicate values",
-      "Non-leaf nodes must be at least half full"
-    ],
-    correctAnswer: 1,
-    explanation: "In a B+ tree, leaf nodes contain both keys and pointers to actual data records, while non-leaf nodes only contain keys used for navigation through the tree.",
-    category: "Indexing",
-    difficulty: "hard"
-  },
-  {
-    id: 120,
-    question: "When would you choose to create a clustered index in a database?",
-    options: [
-      "When the data needs to be physically ordered based on the index key",
-      "When you need multiple indexes on the same table",
-      "When you need to index non-key attributes",
-      "When you want to speed up DELETE operations"
-    ],
-    correctAnswer: 0,
-    explanation: "A clustered index is chosen when you want the actual data records to be physically ordered according to the index key, which is beneficial for range queries and sequential access.",
-    category: "Indexing",
-    difficulty: "medium"
-  },
-  {
-    id: 121,
-    question: "True or False: A base table can have more than one clustered index.",
-    options: [
-      "True",
-      "False"
-    ],
-    correctAnswer: 1,
-    explanation: "False - A base table can only have one clustered index because the data can only be physically ordered in one way.",
-    category: "Indexing",
-    difficulty: "medium"
-  },
-  {
-    id: 122,
-    question: "An index that allows duplicate values is called a:",
-    options: [
-      "Primary index",
-      "Secondary index",
-      "Non-unique index",
-      "Dense index"
-    ],
-    correctAnswer: 2,
-    explanation: "An index that allows duplicate values is called a non-unique index. This is in contrast to unique indexes which enforce value uniqueness.",
-    category: "Indexing",
-    difficulty: "medium"
-  },
+
+
   {
     id: 123,
     question: "When joining two relations, what is the main advantage of having both relations sorted on the join attribute?",
@@ -1523,76 +1444,6 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     category: "Query Optimization",
     difficulty: "medium"
   },
-  {
-    id: 124,
-    question: "Which of the following best describes what happens when parsing a query?",
-    options: [
-      "The query is checked for semantic errors",
-      "The query is translated into machine code",
-      "The query is checked for syntax errors and translated into internal form",
-      "The query is optimized for best performance"
-    ],
-    correctAnswer: 2,
-    explanation: "During parsing, the query is checked for proper syntax and converted into an internal representation (like a query tree) that the DBMS can process.",
-    category: "Query Processing",
-    difficulty: "medium"
-  },
-  {
-    id: 125,
-    question: "For a sequential file organization, which operation would be the most efficient?",
-    options: [
-      "Random access to records",
-      "Inserting records in the middle of the file",
-      "Reading all records in order",
-      "Updating records randomly throughout the file"
-    ],
-    correctAnswer: 2,
-    explanation: "Sequential file organization is most efficient for reading all records in order, as the records are stored one after another on disk.",
-    category: "File Organization",
-    difficulty: "medium"
-  },
-  {
-    id: 126,
-    question: "In statistical database security, which of the following is NOT a valid approach to prevent inference attacks?",
-    options: [
-      "Adding noise to query results",
-      "Restricting access to only aggregate functions",
-      "Blocking queries that return small result sets",
-      "Encrypting all data values"
-    ],
-    correctAnswer: 3,
-    explanation: "Encrypting all data values is not a statistical database security method. Valid approaches include adding noise, restricting to aggregates, and controlling result set sizes.",
-    category: "Security",
-    difficulty: "hard"
-  },
-  {
-    id: 127,
-    question: "What is the primary purpose of the checkpoint mechanism in database recovery?",
-    options: [
-      "To prevent unauthorized access",
-      "To reduce the amount of work needed during recovery",
-      "To improve query performance",
-      "To prevent deadlocks"
-    ],
-    correctAnswer: 1,
-    explanation: "Checkpoints reduce recovery time by limiting how far back the system needs to go when recovering from a failure, as it marks a point where all prior transactions are known to be on disk.",
-    category: "Recovery",
-    difficulty: "medium"
-  },
-  {
-    id: 128,
-    question: "In a mixed fragmentation scheme for distributed databases, what happens first?",
-    options: [
-      "Vertical fragmentation followed by horizontal fragmentation",
-      "Horizontal fragmentation followed by vertical fragmentation",
-      "Both fragmentations happen simultaneously",
-      "The choice depends on the specific implementation"
-    ],
-    correctAnswer: 0,
-    explanation: "In mixed fragmentation, vertical fragmentation is performed first, splitting the relation into sub-relations by columns, followed by horizontal fragmentation of these sub-relations.",
-    category: "Distributed Databases",
-    difficulty: "hard"
-  }
   
   
 
