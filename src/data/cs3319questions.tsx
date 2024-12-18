@@ -1454,6 +1454,74 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     explanation: "The number of locks held is not typically used as a criterion for selecting which transaction to roll back in deadlock recovery. Common methods include rolling back the youngest transaction or all deadlocked transactions.",
     category: "Recovery",
     difficulty: "hard"
+  },
+  {
+    id: 119,
+    question: "In a B+ tree index, what best describes the difference between a leaf node and a non-leaf node?",
+    options: [
+      "Leaf nodes have more entries than non-leaf nodes",
+      "Leaf nodes contain pointers to data records while non-leaf nodes only contain keys",
+      "Leaf nodes cannot contain duplicate values",
+      "Non-leaf nodes must be at least half full"
+    ],
+    correctAnswer: 1,
+    explanation: "In a B+ tree, leaf nodes contain both keys and pointers to actual data records, while non-leaf nodes only contain keys used for navigation through the tree.",
+    category: "Indexing",
+    difficulty: "hard"
+  },
+  {
+    id: 120,
+    question: "When would you choose to create a clustered index in a database?",
+    options: [
+      "When the data needs to be physically ordered based on the index key",
+      "When you need multiple indexes on the same table",
+      "When you need to index non-key attributes",
+      "When you want to speed up DELETE operations"
+    ],
+    correctAnswer: 0,
+    explanation: "A clustered index is chosen when you want the actual data records to be physically ordered according to the index key, which is beneficial for range queries and sequential access.",
+    category: "Indexing",
+    difficulty: "medium"
+  },
+  {
+    id: 121,
+    question: "True or False: A base table can have more than one clustered index.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctAnswer: 1,
+    explanation: "False - A base table can only have one clustered index because the data can only be physically ordered in one way.",
+    category: "Indexing",
+    difficulty: "medium"
+  },
+  {
+    id: 122,
+    question: "An index that allows duplicate values is called a:",
+    options: [
+      "Primary index",
+      "Secondary index",
+      "Non-unique index",
+      "Dense index"
+    ],
+    correctAnswer: 2,
+    explanation: "An index that allows duplicate values is called a non-unique index. This is in contrast to unique indexes which enforce value uniqueness.",
+    category: "Indexing",
+    difficulty: "medium"
+  },
+  {
+    id: 123,
+    question: "When joining two relations, what is the main advantage of having both relations sorted on the join attribute?",
+    options: [
+      "It reduces the number of disk seeks required",
+      "It allows for parallel processing",
+      "It eliminates the need for indexes",
+      "It guarantees no duplicate results"
+    ],
+    correctAnswer: 0,
+    explanation: "Having both relations sorted on the join attribute allows for a merge join, which reduces the number of disk seeks needed as the relations can be processed sequentially.",
+    category: "Query Optimization",
+    difficulty: "medium"
   }
   
   
