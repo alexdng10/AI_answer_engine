@@ -194,7 +194,7 @@ export const cs3319Questions: QuizQuestion[] = [
     id: 16,
     question: "VideoID, CustomerID → VideoTitle is a partial functional dependency.",
     options: ["True", "False"],
-    correctAnswer: 1,
+    correctAnswer: 0,
     explanation: "This is not a partial functional dependency because VideoID alone determines VideoTitle. CustomerID is not needed for this dependency.",
     category: "Functional Dependencies",
     difficulty: "medium",
