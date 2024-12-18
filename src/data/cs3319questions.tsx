@@ -1444,7 +1444,127 @@ After inserting INTO BB VALUES (4),(3),(1), how many rows will be in table CC?`,
     category: "Query Optimization",
     difficulty: "medium"
   },
-  
+  {
+    id: 124,
+    question: "True or False: If you put table T into 3NF and end up with tables T1 and T2, and someone else puts table T into 3NF and ends up with tables T3 and T4, then one of you did something wrong.",
+    options: ["True", "False"],
+    correctAnswer: 1,
+    explanation: "False - There can be multiple valid ways to decompose a table into 3NF.",
+    category: "Normalization",
+    difficulty: "medium"
+  },
+  {
+    id: 125,
+    question: "True or False: Variable names are case sensitive in PHP",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True - In PHP, variable names are case-sensitive.",
+    category: "Web Development",
+    difficulty: "easy"
+  },
+  {
+    id: 126,
+    question: "If recovery is needed due to an unforeseen problem, any transaction that had NOT committed before the problem, should be:",
+    options: [
+      "Moved to the point 1/2 way through the transaction where the problem occurred",
+      "Rolled Back",
+      "Rolled Forward"
+    ],
+    correctAnswer: 1,
+    explanation: "Transactions that had not committed must be rolled back to maintain database consistency.",
+    category: "Recovery",
+    difficulty: "medium"
+  },
+  {
+    id: 127,
+    question: "Which of these disk accessing activities is the fastest?",
+    options: [
+      "Moving the data from the block to main memory (the block transfer time)",
+      "Rotating the disk to the correct sector (the latency/rotational delay)",
+      "Finding the track (the seek time)"
+    ],
+    correctAnswer: 0,
+    explanation: "Moving data from block to main memory is the fastest of these disk accessing operations.",
+    category: "Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 128,
+    question: "True or False: Only one relationship can exist between two different entities",
+    options: ["True", "False"],
+    correctAnswer: 1,
+    explanation: "False - Multiple relationships can exist between two entities. For example, a professor can both advise a student and teach a course the student is enrolled in.",
+    category: "Entity Relationships",
+    difficulty: "medium"
+  },
+  {
+    id: 129,
+    question: "Why is a database normally stored on a Hard Disk rather than in Main Memory? (Select all that apply)",
+    options: [
+      "Because the hard disk is less volatile than main memory",
+      "Because the hard disk is faster access than main memory",
+      "Because the hard disk is cheaper than main memory",
+      "Because the hard disk takes up less physical space than main memory",
+      "Because the hard disk can store more data than main memory"
+    ],
+    correctAnswer: 0,
+    explanation: "Hard disk is less volatile (retains data after power off), cheaper, and can store more data than main memory.",
+    category: "Storage",
+    difficulty: "medium"
+  },
+  {
+    id: 130,
+    question: "Which of the following granularities of locking will be the least restrictive to other transactions that are waiting for a locked item?",
+    options: [
+      "Page Level",
+      "Table Level",
+      "Field Level",
+      "Row Level",
+      "Database Level"
+    ],
+    correctAnswer: 2,
+    explanation: "Field Level locking is the least restrictive as it only locks individual fields rather than larger units of data.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 131,
+    question: "True or False: Selections should be moved as close as possible to the root of the query optimization tree.",
+    options: ["True", "False"],
+    correctAnswer: 0,
+    explanation: "True - in query optimization, selections should be moved closer to the root of the tree.",
+    category: "Query Optimization",
+    difficulty: "easy"
+  },
+  {
+    id: 132,
+    question: "The property of transactions being interleaved with each other when running that relates to the correctness of the interleaving is called:",
+    options: [
+      "simultaneity",
+      "spontaneity",
+      "parallel processing ability",
+      "serializability"
+    ],
+    correctAnswer: 3,
+    explanation: "Serializability is the property that ensures correct results when transactions are interleaved.",
+    category: "Concurrency",
+    difficulty: "medium"
+  },
+  {
+    id: 133,
+    question: "Which of the following tables are NOT in the mysql information_schema database?",
+    options: [
+      "VIEWS",
+      "COLUMNS",
+      "GRANTS",
+      "TABLES",
+      "None of the above are tables in the schema"
+    ],
+    correctAnswer: 2,
+    explanation: "GRANTS is not a table in the mysql information_schema database.",
+    category: "MySQL",
+    difficulty: "medium"
+  }
   
 
 
