@@ -25,22 +25,32 @@ function MyApp({ Component, pageProps }: AppProps) {
     }
   };
 
-  return isAuthenticated ? (
-    <Component {...pageProps} />
-  ) : (
-    <div style={{ textAlign: 'center', marginTop: '20%' }}>
-      <h1>Enter Password to Access the Site</h1>
-      <input
-        type="password"
-        value={inputPassword}
-        onChange={(e) => setInputPassword(e.target.value)}
-        placeholder="Password"
-        style={{ padding: '8px', marginRight: '10px' }}
-      />
-      <button onClick={handleLogin} style={{ padding: '8px' }}>
-        Submit
-      </button>
-    </div>
+  return (
+    <>
+      {isAuthenticated ? (
+        <>
+          <Component {...pageProps} />
+          <Analytics debug={true} />
+        </>
+      ) : (
+        <>
+          <div style={{ textAlign: 'center', marginTop: '20%' }}>
+            <h1>Enter Password to Access the Site</h1>
+            <input
+              type="password"
+              value={inputPassword}
+              onChange={(e) => setInputPassword(e.target.value)}
+              placeholder="alexdang19"
+              style={{ padding: '8px', marginRight: '10px' }}
+            />
+            <button onClick={handleLogin} style={{ padding: '8px' }}>
+              Submit
+            </button>
+          </div>
+          <Analytics debug={true} />
+        </>
+      )}
+    </>
   );
 }
 
