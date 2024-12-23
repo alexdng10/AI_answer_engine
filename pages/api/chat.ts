@@ -417,18 +417,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let pdfText = ''
     let urlContents = ''
 
-    // Process URLs from message
-    const urlRegex = /(https?:\/\/[^\s]+)/g
+    // Process URLs from message with more robust URL extraction
+    const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi
     const urls = message.match(urlRegex)
+
     if (urls) {
+      // Add delay between URL scraping to avoid rate limiting
       for (const url of urls) {
         try {
-          const content = await scrapeUrl(url)
-          urlContents += `\n\nURL: ${url}\n${content}`
+          // Add custom error handling for common issues
+          const content = await scrapeUrl(url).catch(async (error) => {
+            if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT')) {
+              // Retry once with a delay
+              await delay(2000);
+              return scrapeUrl(url);
+            }
+            throw error;
+          });
+
+          // Format the URL content better
+          urlContents += `\n\nAnalyzing content from ${url}:\n${content}`
         } catch (error) {
           console.error(`Error processing URL ${url}:`, error)
-          urlContents += `\n\nURL: ${url}\nError: Could not access URL`
+          urlContents += `\n\nUnable to access ${url}: ${error.message}`
         }
+        // Add delay between requests
+        await delay(1000);
       }
     }
 
@@ -442,21 +456,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pdfText = `\n\nPDF Content from ${file.originalFilename}:\n${content}`
         } catch (error) {
           console.error('Error processing PDF:', error)
-          pdfText = `\nError processing PDF ${file.originalFilename}`
+          pdfText = `\nError processing PDF ${file.originalFilename}: ${error.message}`
         }
         await fs.unlink(file.filepath).catch(console.error)
       }
     }
 
-    // Combine content and get completion
-    const prompt = `Analyze this content:${urlContents}${pdfText}`.slice(0, 4000)
-    
+    // Better prompt construction
+    const prompt = `I'll help you analyze this content and answer your question:
+${message}
+
+${urlContents}${pdfText}
+`.slice(0, 4000) // Keep under token limit
+
+    // Include more context from previous messages
     const completion = await groq.chat.completions.create({
       messages: [
-        ...JSON.parse(fields.previousMessages[0]).slice(-1).map(m => ({
-          role: m.role,
-          content: m.content.slice(0, 500),
-        })),
+        {
+          role: 'system',
+          content: 'You are a helpful assistant that analyzes content and answers questions directly and accurately.'
+        },
+        ...JSON.parse(fields.previousMessages[0])
+          .slice(-2) // Include last 2 messages for context
+          .map(m => ({
+            role: m.role,
+            content: m.content.slice(0, 500),
+          })),
         {
           role: 'user',
           content: prompt
@@ -467,16 +492,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       max_tokens: 1000,
     })
 
+    // Process the response
+    const responseContent = completion.choices[0]?.message?.content || 'No response generated.'
+
     return res.status(200).json({
-      content: completion.choices[0]?.message?.content || 'No response generated.',
+      content: responseContent,
       processedFiles: files.file0 ? [files.file0[0].originalFilename] : [],
+      processedUrls: urls || []
     })
 
   } catch (error) {
     console.error('Handler error:', error)
     return res.status(500).json({
       error: 'Failed to process request',
-      content: 'Sorry, there was an error processing your request.'
+      content: `Sorry, there was an error processing your request: ${error.message}`
     })
   }
 }
