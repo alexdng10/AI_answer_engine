@@ -4,6 +4,16 @@ import { Redis } from '@upstash/redis'
 import { Groq } from 'groq-sdk'
 import * as cheerio from 'cheerio'
 import puppeteer from 'puppeteer';
+import * as pdfjs from 'pdfjs-dist'
+import formidable from 'formidable'
+import { promises as fs } from 'fs'
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.entry')
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -20,6 +30,52 @@ const ratelimit = new Ratelimit({
 const urlCache: { [key: string]: { content: string; timestamp: number } } = {};
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+async function parseForm(req: NextApiRequest) {
+  const form = formidable({
+    maxFileSize: 10 * 1024 * 1024, // 10MB limit
+  })
+
+  return new Promise((resolve, reject) => {
+    form.parse(req, (err, fields, files) => {
+      if (err) reject(err)
+      resolve({ fields, files })
+    })
+  })
+}
+async function parsePDF(buffer: Buffer): Promise<string> {
+  try {
+    // Convert Buffer to Uint8Array
+    const uint8Array = new Uint8Array(buffer)
+    
+    // Load the PDF document
+    const pdf = await pdfjs.getDocument({
+      data: uint8Array,
+      useSystemFonts: true,
+    }).promise
+
+    let fullText = ''
+    // Extract text from each page
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      const pageText = content.items
+        .map((item: any) => item.str)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      fullText += pageText + '\n\n'
+    }
+
+    if (!fullText.trim()) {
+      throw new Error('No text content found in PDF')
+    }
+
+    return fullText
+  } catch (error: any) {
+    console.error('Error parsing PDF:', error)
+    throw new Error(`Failed to parse PDF file: ${error.message}`)
+  }
+}
 // Helper function to format content consistently
 function formatContent(
   content: any,
@@ -350,107 +406,77 @@ interface RequestBody {
   previousMessages: Message[];
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const clientId = req.headers['x-forwarded-for'] || 'unknown'
-    
-    // Check rate limit
-    if (await isRateLimited(clientId as string)) {
-      return res.status(429).json({ 
-        error: 'Too many requests. Please wait a moment before trying again.',
-        content: "I'm receiving too many requests. Please wait a brief moment before sending another message.",
-        failedUrls: []
-      })
-    }
+    const { fields, files }: any = await parseForm(req)
+    const message = fields.message[0]
+    let pdfText = ''
+    let urlContents = ''
 
-    // Add delay between requests
-    await delay(RATE_LIMIT.delayMs)
-
-    const body = req.body
-    const { message, previousMessages = [] } = body
-    
-    // Prepare base prompt
-    let prompt = message
-
-    // Split into smaller chunks
-    const chunks = chunkContent(prompt)
-    const responses: string[] = []
-
-    // Process each chunk with delay and error handling
-    for (const chunk of chunks) {
-      try {
-        await delay(1000) // Delay between chunks
-        
-        const completion = await groq.chat.completions.create({
-          messages: [
-            ...previousMessages.slice(-3).map(m => ({ // Keep only last 3 messages for context
-              role: m.role,
-              content: m.content.slice(0, 1000), // Limit message size
-            })),
-            { 
-              role: 'user', 
-              content: chunk + (chunks.length > 1 ? '\n\nNote: This is part of a larger content. Please focus on extracting and analyzing the information from this part.' : '')
-            }
-          ],
-          model: 'mixtral-8x7b-32768',
-          temperature: 0.5,
-          max_tokens: 2000,
-          top_p: 1,
-          stop: null,
-          stream: false,
-        })
-
-        responses.push(completion.choices[0]?.message?.content || '')
-      } catch (error) {
-        if (error.message?.includes('413')) {
-          console.error('Chunk too large, skipping:', error)
-          continue
+    // Process URLs from message
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const urls = message.match(urlRegex)
+    if (urls) {
+      for (const url of urls) {
+        try {
+          const content = await scrapeUrl(url)
+          urlContents += `\n\nURL: ${url}\n${content}`
+        } catch (error) {
+          console.error(`Error processing URL ${url}:`, error)
+          urlContents += `\n\nURL: ${url}\nError: Could not access URL`
         }
-        throw error
       }
     }
 
-    // Merge responses if we have any
-    const finalResponse = responses.length > 0 
-      ? mergeResponses(responses)
-      : "I apologize, but I couldn't process the content due to size limitations. Please try with a smaller amount of content."
+    // Process PDF if present
+    if (files.file0) {
+      const file = files.file0[0]
+      if (file.mimetype === 'application/pdf') {
+        try {
+          const fileData = await fs.readFile(file.filepath)
+          const content = await parsePDF(fileData)
+          pdfText = `\n\nPDF Content from ${file.originalFilename}:\n${content}`
+        } catch (error) {
+          console.error('Error processing PDF:', error)
+          pdfText = `\nError processing PDF ${file.originalFilename}`
+        }
+        await fs.unlink(file.filepath).catch(console.error)
+      }
+    }
+
+    // Combine content and get completion
+    const prompt = `Analyze this content:${urlContents}${pdfText}`.slice(0, 4000)
+    
+    const completion = await groq.chat.completions.create({
+      messages: [
+        ...JSON.parse(fields.previousMessages[0]).slice(-1).map(m => ({
+          role: m.role,
+          content: m.content.slice(0, 500),
+        })),
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      model: 'llama-3.3-70b-specdec',
+      temperature: 0.5,
+      max_tokens: 1000,
+    })
 
     return res.status(200).json({
-      content: finalResponse,
-      chunked: chunks.length > 1
+      content: completion.choices[0]?.message?.content || 'No response generated.',
+      processedFiles: files.file0 ? [files.file0[0].originalFilename] : [],
     })
 
   } catch (error) {
-    console.error('Error in chat route:', error)
-    const isPayloadError = error.message?.includes('413') || error.message?.includes('too large')
-    
-    if (isPayloadError) {
-      return res.status(413).json({ 
-        error: 'Content too large to process. Please try with less content.',
-        content: "I apologize, but that's a bit too much for me to process at once. Could you try with less content?",
-        failedUrls: []
-      })
-    }
-    
-    if (error.message?.includes('rate_limit_exceeded')) {
-      return res.status(429).json({ 
-        error: 'Please wait a moment before sending another message.',
-        content: "I need a brief moment to process your request. Please try again shortly.",
-        failedUrls: []
-      })
-    }
-
-    return res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Failed to process request',
-      content: "Sorry, I encountered an error processing your request.",
-      failedUrls: []
+    console.error('Handler error:', error)
+    return res.status(500).json({
+      error: 'Failed to process request',
+      content: 'Sorry, there was an error processing your request.'
     })
   }
 }
